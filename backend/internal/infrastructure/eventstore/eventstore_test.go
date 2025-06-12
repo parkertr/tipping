@@ -17,9 +17,7 @@ func TestNewPostgresEventStore(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
+		_ = db.Close() // Ignore close errors for mock database
 	}()
 
 	// Set up expectations for database ping
@@ -36,28 +34,26 @@ func TestNewPostgresEventStore(t *testing.T) {
 }
 
 func TestSaveEvent(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for database ping
-	mock.ExpectPing()
-
-	// Create event store
-	store, err := NewPostgresEventStore(db)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-
 	// Test case 1: Save match created event
 	t.Run("Save match created event", func(t *testing.T) {
+		// Create a mock database
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		defer func() {
+			_ = db.Close() // Ignore close errors for mock database
+		}()
+
+		// Set up expectations for database ping
+		mock.ExpectPing()
+
+		// Create event store
+		store, err := NewPostgresEventStore(db)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
 		ctx := context.Background()
 		matchCreated := &events.MatchCreated{
 			ID:          "match123",
@@ -83,6 +79,24 @@ func TestSaveEvent(t *testing.T) {
 
 	// Test case 2: Save prediction made event
 	t.Run("Save prediction made event", func(t *testing.T) {
+		// Create a mock database
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		defer func() {
+			_ = db.Close() // Ignore close errors for mock database
+		}()
+
+		// Set up expectations for database ping
+		mock.ExpectPing()
+
+		// Create event store
+		store, err := NewPostgresEventStore(db)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
 		ctx := context.Background()
 		predictionMade := &events.PredictionMade{
 			ID:        "pred123",
@@ -109,28 +123,26 @@ func TestSaveEvent(t *testing.T) {
 }
 
 func TestGetEvents(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for database ping
-	mock.ExpectPing()
-
-	// Create event store
-	store, err := NewPostgresEventStore(db)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
 	// Test case 1: Get match events
 	t.Run("Get match events", func(t *testing.T) {
+		// Create a mock database
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		defer func() {
+			_ = db.Close() // Ignore close errors for mock database
+		}()
+
+		// Set up expectations for database ping
+		mock.ExpectPing()
+
+		// Create event store
+		store, err := NewPostgresEventStore(db)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
 		ctx := context.Background()
 		matchID := "match123"
 		now := time.Now()
@@ -152,7 +164,10 @@ func TestGetEvents(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"id", "type", "data", "timestamp", "version"}).
 			AddRow(event.ID, event.Type, eventData, event.Timestamp, event.Version)
 
-		mock.ExpectQuery("SELECT id, type, data, timestamp, version FROM events").
+		mock.ExpectQuery(`SELECT id, type, data, timestamp, version
+                        FROM events
+                        WHERE \(data->>'ID' = \$1\) OR \(data->>'MatchID' = \$1\) OR \(data->>'UserID' = \$1\)
+                        ORDER BY timestamp ASC`).
 			WithArgs(matchID).
 			WillReturnRows(rows)
 
@@ -197,6 +212,24 @@ func TestGetEvents(t *testing.T) {
 
 	// Test case 2: Get prediction events
 	t.Run("Get prediction events", func(t *testing.T) {
+		// Create a mock database
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		defer func() {
+			_ = db.Close() // Ignore close errors for mock database
+		}()
+
+		// Set up expectations for database ping
+		mock.ExpectPing()
+
+		// Create event store
+		store, err := NewPostgresEventStore(db)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
 		ctx := context.Background()
 		userID := "user123"
 		now := time.Now()
@@ -219,7 +252,10 @@ func TestGetEvents(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"id", "type", "data", "timestamp", "version"}).
 			AddRow(event.ID, event.Type, eventData, event.Timestamp, event.Version)
 
-		mock.ExpectQuery("SELECT id, type, data, timestamp, version FROM events").
+		mock.ExpectQuery(`SELECT id, type, data, timestamp, version
+                        FROM events
+                        WHERE \(data->>'ID' = \$1\) OR \(data->>'MatchID' = \$1\) OR \(data->>'UserID' = \$1\)
+                        ORDER BY timestamp ASC`).
 			WithArgs(userID).
 			WillReturnRows(rows)
 

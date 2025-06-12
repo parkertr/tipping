@@ -14,6 +14,7 @@ func TestNewServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	mock.ExpectClose()
 	defer func() {
 		if err := db.Close(); err != nil {
 			t.Errorf("error closing db: %v", err)
@@ -51,6 +52,7 @@ func TestServerRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	mock.ExpectClose()
 	defer func() {
 		if err := db.Close(); err != nil {
 			t.Errorf("error closing db: %v", err)
@@ -101,6 +103,7 @@ func TestServerClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	mock.ExpectClose()
 	defer func() {
 		if err := db.Close(); err != nil {
 			t.Errorf("error closing db: %v", err)
@@ -129,6 +132,7 @@ func TestMiddleware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	mock.ExpectClose()
 	defer func() {
 		if err := db.Close(); err != nil {
 			t.Errorf("error closing db: %v", err)
