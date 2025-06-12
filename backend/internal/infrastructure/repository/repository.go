@@ -2,9 +2,15 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/parkertr2/footy-tipping/internal/domain"
+)
+
+// Common repository errors
+var (
+	ErrNotFound = errors.New("resource not found")
 )
 
 // MatchRepository defines the interface for match read model operations

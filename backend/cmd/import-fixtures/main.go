@@ -11,7 +11,9 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventhandlers"
 	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository/postgres"
 	"github.com/parkertr2/footy-tipping/pkg/events"
 )
 
@@ -75,6 +77,10 @@ func main() {
 		log.Fatalf("Failed to create event store: %v", err)
 	}
 
+	// Create repositories and event handler
+	matchRepo := postgres.NewMatchRepository(db)
+	eventHandler := eventhandlers.NewMatchEventHandler(matchRepo)
+
 	// Import fixtures
 	ctx := context.Background()
 	imported := 0
@@ -109,6 +115,12 @@ func main() {
 		if err := eventStore.SaveEvent(ctx, event); err != nil {
 			log.Printf("Failed to import match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
 			continue
+		}
+
+		// Process event through handler to update read model
+		if err := eventHandler.HandleEvent(ctx, event); err != nil {
+			log.Printf("Failed to process event for match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
+			// Continue anyway since the event is saved
 		}
 
 		fmt.Printf("Imported: %s vs %s (%s) on %s\n",

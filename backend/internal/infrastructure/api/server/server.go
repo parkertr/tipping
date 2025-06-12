@@ -51,7 +51,7 @@ func NewServer(db *sql.DB) (*Server, error) {
 // setupRoutes configures the server routes
 func (s *Server) setupRoutes() {
 	// Create handlers
-	matchHandler := handlers.NewMatchHandler(s.eventStore)
+	matchHandler := handlers.NewMatchHandler(s.eventStore, s.matchRepo)
 	predictionHandler := handlers.NewPredictionHandler(s.eventStore)
 
 	// Match routes

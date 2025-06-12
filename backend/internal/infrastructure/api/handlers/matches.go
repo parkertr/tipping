@@ -8,17 +8,23 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/parkertr2/footy-tipping/internal/domain"
+	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventhandlers"
+	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository"
 	"github.com/parkertr2/footy-tipping/pkg/events"
 	"github.com/parkertr2/footy-tipping/pkg/utils"
 )
 
 type MatchHandler struct {
-	eventStore EventStore
+	eventStore   EventStore
+	matchRepo    repository.MatchRepository
+	eventHandler *eventhandlers.MatchEventHandler
 }
 
-func NewMatchHandler(eventStore EventStore) *MatchHandler {
+func NewMatchHandler(eventStore EventStore, matchRepo repository.MatchRepository) *MatchHandler {
 	return &MatchHandler{
-		eventStore: eventStore,
+		eventStore:   eventStore,
+		matchRepo:    matchRepo,
+		eventHandler: eventhandlers.NewMatchEventHandler(matchRepo),
 	}
 }
 
@@ -57,6 +63,12 @@ func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Process event to update read model
+	if err := h.eventHandler.HandleEvent(r.Context(), event); err != nil {
+		fmt.Printf("Failed to process event for match creation: %v\n", err)
+		// Continue anyway since the event is saved
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(match); err != nil {
@@ -91,6 +103,12 @@ func (h *MatchHandler) UpdateMatchScore(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Process event to update read model
+	if err := h.eventHandler.HandleEvent(r.Context(), event); err != nil {
+		fmt.Printf("Failed to process event for score update: %v\n", err)
+		// Continue anyway since the event is saved
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -99,6 +117,17 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	matchID := vars["id"]
 
+	// Try to get from read model first
+	match, err := h.matchRepo.GetByID(r.Context(), matchID)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(match); err != nil {
+			fmt.Printf("error encoding match: %v\n", err)
+		}
+		return
+	}
+
+	// Fallback to rebuilding from events if not in read model
 	events, err := h.eventStore.GetEvents(r.Context(), matchID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve match", http.StatusInternalServerError)
@@ -111,7 +140,7 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Rebuild match from events
-	match := &domain.Match{}
+	match = &domain.Match{}
 	for _, event := range events {
 		switch event.Type {
 		case "MatchCreated":
@@ -163,40 +192,13 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ListMatches retrieves all matches
+// ListMatches retrieves all matches from the read model
 func (h *MatchHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
-	events, err := h.eventStore.GetEventsByType(r.Context(), "MatchCreated")
+	// Use read model for better performance and consistent date formatting
+	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{})
 	if err != nil {
 		http.Error(w, "Failed to retrieve matches", http.StatusInternalServerError)
 		return
-	}
-
-	matches := make([]*domain.Match, 0)
-	for _, event := range events {
-		data, err := json.Marshal(event.Data)
-		if err != nil {
-			http.Error(w, "Failed to process match data", http.StatusInternalServerError)
-			return
-		}
-		var matchCreated struct {
-			ID          string    `json:"id"`
-			HomeTeam    string    `json:"homeTeam"`
-			AwayTeam    string    `json:"awayTeam"`
-			Date        time.Time `json:"date"`
-			Competition string    `json:"competition"`
-		}
-		if err := json.Unmarshal(data, &matchCreated); err != nil {
-			http.Error(w, "Failed to process match data", http.StatusInternalServerError)
-			return
-		}
-		match := domain.NewMatch(
-			matchCreated.ID,
-			matchCreated.HomeTeam,
-			matchCreated.AwayTeam,
-			matchCreated.Date,
-			matchCreated.Competition,
-		)
-		matches = append(matches, match)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
