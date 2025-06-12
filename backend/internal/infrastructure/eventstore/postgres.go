@@ -57,7 +57,7 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 	query := `
 		SELECT id, type, data, timestamp, version
 		FROM events
-		WHERE data->>'aggregateID' = $1
+		WHERE (data->>'ID' = $1) OR (data->>'MatchID' = $1) OR (data->>'UserID' = $1)
 		ORDER BY timestamp ASC
 	`
 
@@ -89,6 +89,12 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
 			}
 			event.Data = scoreUpdated
+		case "MatchStatusChanged":
+			var statusChanged events.MatchStatusChanged
+			if err := json.Unmarshal(data, &statusChanged); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
+			}
+			event.Data = statusChanged
 		case "PredictionMade":
 			var predictionMade events.PredictionMade
 			if err := json.Unmarshal(data, &predictionMade); err != nil {
@@ -140,6 +146,12 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
 			}
 			event.Data = scoreUpdated
+		case "MatchStatusChanged":
+			var statusChanged events.MatchStatusChanged
+			if err := json.Unmarshal(data, &statusChanged); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
+			}
+			event.Data = statusChanged
 		case "PredictionMade":
 			var predictionMade events.PredictionMade
 			if err := json.Unmarshal(data, &predictionMade); err != nil {
@@ -191,6 +203,12 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
 			}
 			event.Data = scoreUpdated
+		case "MatchStatusChanged":
+			var statusChanged events.MatchStatusChanged
+			if err := json.Unmarshal(data, &statusChanged); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
+			}
+			event.Data = statusChanged
 		case "PredictionMade":
 			var predictionMade events.PredictionMade
 			if err := json.Unmarshal(data, &predictionMade); err != nil {
