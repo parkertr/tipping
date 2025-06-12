@@ -6,19 +6,19 @@ import (
 
 // Match represents a football match in the system
 type Match struct {
-	ID          string
-	HomeTeam    string
-	AwayTeam    string
-	Date        time.Time
-	Competition string
-	Status      MatchStatus
-	Score       *Score
+	ID          string      `json:"id"`
+	HomeTeam    string      `json:"homeTeam"`
+	AwayTeam    string      `json:"awayTeam"`
+	Date        time.Time   `json:"date"`
+	Competition string      `json:"competition"`
+	Status      MatchStatus `json:"status"`
+	Score       *Score      `json:"score"`
 }
 
 // Score represents the match score
 type Score struct {
-	HomeGoals int
-	AwayGoals int
+	HomeGoals int `json:"homeGoals"`
+	AwayGoals int `json:"awayGoals"`
 }
 
 // MatchStatus represents the current status of a match
