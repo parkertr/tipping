@@ -16,7 +16,11 @@ func TestNewPostgresEventStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+	}()
 
 	// Set up expectations for database ping
 	mock.ExpectPing()
@@ -37,7 +41,11 @@ func TestSaveEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+	}()
 
 	// Set up expectations for database ping
 	mock.ExpectPing()
@@ -106,7 +114,11 @@ func TestGetEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+	}()
 
 	// Set up expectations for database ping
 	mock.ExpectPing()

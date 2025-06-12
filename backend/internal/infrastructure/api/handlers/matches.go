@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -58,7 +59,9 @@ func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(match)
+	if err := json.NewEncoder(w).Encode(match); err != nil {
+		fmt.Printf("error encoding match: %v\n", err)
+	}
 }
 
 // UpdateMatchScore handles updating a match's score
@@ -155,7 +158,9 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(match)
+	if err := json.NewEncoder(w).Encode(match); err != nil {
+		fmt.Printf("error encoding match: %v\n", err)
+	}
 }
 
 // ListMatches retrieves all matches
@@ -195,5 +200,7 @@ func (h *MatchHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(matches)
+	if err := json.NewEncoder(w).Encode(matches); err != nil {
+		fmt.Printf("error encoding matches: %v\n", err)
+	}
 }

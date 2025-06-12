@@ -26,14 +26,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error closing db: %v", err)
+		}
+	}()
 
 	// Create server
 	srv, err := server.NewServer(db)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
-	defer srv.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			log.Printf("error closing server: %v", err)
+		}
+	}()
 
 	// Create HTTP server
 	httpServer := &http.Server{

@@ -123,7 +123,9 @@ func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(prediction)
+	if err := json.NewEncoder(w).Encode(prediction); err != nil {
+		fmt.Printf("error encoding prediction: %v\n", err)
+	}
 }
 
 // GetUserPredictions retrieves all predictions for a user
@@ -169,7 +171,9 @@ func (h *PredictionHandler) GetUserPredictions(w http.ResponseWriter, r *http.Re
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(predictions)
+	if err := json.NewEncoder(w).Encode(predictions); err != nil {
+		fmt.Printf("error encoding predictions: %v\n", err)
+	}
 }
 
 // GetMatchPredictions retrieves all predictions for a match
@@ -215,5 +219,7 @@ func (h *PredictionHandler) GetMatchPredictions(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(predictions)
+	if err := json.NewEncoder(w).Encode(predictions); err != nil {
+		fmt.Printf("error encoding predictions: %v\n", err)
+	}
 }

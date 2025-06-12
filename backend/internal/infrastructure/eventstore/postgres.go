@@ -65,7 +65,11 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}()
 
 	var result []*events.Event
 	for rows.Next() {
@@ -122,7 +126,11 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}()
 
 	var result []*events.Event
 	for rows.Next() {
@@ -179,7 +187,11 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}()
 
 	var result []*events.Event
 	for rows.Next() {

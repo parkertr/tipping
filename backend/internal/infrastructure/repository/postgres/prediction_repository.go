@@ -139,7 +139,11 @@ func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("failed to list predictions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}()
 
 	var predictions []*domain.Prediction
 	for rows.Next() {
@@ -177,7 +181,11 @@ func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list predictions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}()
 
 	var predictions []*domain.Prediction
 	for rows.Next() {

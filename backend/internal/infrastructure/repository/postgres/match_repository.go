@@ -160,7 +160,6 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	if filters.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = $%d", argPos))
 		args = append(args, *filters.Status)
-		argPos++
 	}
 
 	query := `
@@ -178,7 +177,11 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	if err != nil {
 		return nil, fmt.Errorf("failed to list matches: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}()
 
 	var matches []*domain.Match
 	for rows.Next() {
