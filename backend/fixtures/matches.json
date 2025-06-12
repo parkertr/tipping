@@ -1,0 +1,142 @@
+[
+  {
+    "id": "match_001",
+    "homeTeam": "Manchester United",
+    "awayTeam": "Liverpool",
+    "date": "2025-06-20T15:00:00Z",
+    "competition": "Premier League"
+  },
+  {
+    "id": "match_002",
+    "homeTeam": "Arsenal",
+    "awayTeam": "Chelsea",
+    "date": "2025-06-21T17:30:00Z",
+    "competition": "Premier League"
+  },
+  {
+    "id": "match_003",
+    "homeTeam": "Manchester City",
+    "awayTeam": "Tottenham",
+    "date": "2025-06-22T14:00:00Z",
+    "competition": "Premier League"
+  },
+  {
+    "id": "match_004",
+    "homeTeam": "Newcastle United",
+    "awayTeam": "Brighton",
+    "date": "2025-06-22T16:30:00Z",
+    "competition": "Premier League"
+  },
+  {
+    "id": "match_005",
+    "homeTeam": "Aston Villa",
+    "awayTeam": "West Ham",
+    "date": "2025-06-23T15:00:00Z",
+    "competition": "Premier League"
+  },
+  {
+    "id": "match_006",
+    "homeTeam": "Real Madrid",
+    "awayTeam": "Barcelona",
+    "date": "2025-06-24T20:00:00Z",
+    "competition": "La Liga"
+  },
+  {
+    "id": "match_007",
+    "homeTeam": "Atletico Madrid",
+    "awayTeam": "Sevilla",
+    "date": "2025-06-25T18:30:00Z",
+    "competition": "La Liga"
+  },
+  {
+    "id": "match_008",
+    "homeTeam": "Bayern Munich",
+    "awayTeam": "Borussia Dortmund",
+    "date": "2025-06-26T18:30:00Z",
+    "competition": "Bundesliga"
+  },
+  {
+    "id": "match_009",
+    "homeTeam": "RB Leipzig",
+    "awayTeam": "Bayer Leverkusen",
+    "date": "2025-06-27T20:30:00Z",
+    "competition": "Bundesliga"
+  },
+  {
+    "id": "match_010",
+    "homeTeam": "Paris Saint-Germain",
+    "awayTeam": "Marseille",
+    "date": "2025-06-28T21:00:00Z",
+    "competition": "Ligue 1"
+  },
+  {
+    "id": "match_011",
+    "homeTeam": "AC Milan",
+    "awayTeam": "Inter Milan",
+    "date": "2025-06-29T20:45:00Z",
+    "competition": "Serie A"
+  },
+  {
+    "id": "match_012",
+    "homeTeam": "Juventus",
+    "awayTeam": "Napoli",
+    "date": "2025-06-30T19:00:00Z",
+    "competition": "Serie A"
+  },
+  {
+    "id": "match_013",
+    "homeTeam": "England",
+    "awayTeam": "France",
+    "date": "2025-07-01T20:00:00Z",
+    "competition": "International Friendly"
+  },
+  {
+    "id": "match_014",
+    "homeTeam": "Germany",
+    "awayTeam": "Spain",
+    "date": "2025-07-02T20:00:00Z",
+    "competition": "International Friendly"
+  },
+  {
+    "id": "match_015",
+    "homeTeam": "Brazil",
+    "awayTeam": "Argentina",
+    "date": "2025-07-03T22:00:00Z",
+    "competition": "Copa America"
+  },
+  {
+    "id": "match_016",
+    "homeTeam": "Portugal",
+    "awayTeam": "Netherlands",
+    "date": "2025-07-04T18:00:00Z",
+    "competition": "UEFA Nations League"
+  },
+  {
+    "id": "match_017",
+    "homeTeam": "Belgium",
+    "awayTeam": "Italy",
+    "date": "2025-07-05T20:00:00Z",
+    "competition": "UEFA Nations League"
+  },
+  {
+    "id": "match_018",
+    "homeTeam": "Croatia",
+    "awayTeam": "Poland",
+    "date": "2025-07-06T17:00:00Z",
+    "competition": "UEFA Nations League"
+  },
+  {
+    "id": "match_019",
+    "homeTeam": "Mexico",
+    "awayTeam": "USA",
+    "date": "2025-07-07T21:00:00Z",
+    "competition": "CONCACAF Gold Cup"
+  },
+  {
+    "id": "match_020",
+    "homeTeam": "Japan",
+    "awayTeam": "South Korea",
+    "date": "2025-07-08T12:00:00Z",
+    "competition": "AFC Asian Cup"
+  }
+]
