@@ -179,7 +179,10 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // UpdateProfile updates the current user's profile
@@ -216,7 +219,10 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // DeactivateProfile deactivates the current user's account
@@ -252,13 +258,16 @@ func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"totalPoints":        user.Stats.TotalPoints,
 		"correctPredictions": user.Stats.CorrectPredictions,
 		"totalPredictions":   user.Stats.TotalPredictions,
 		"currentRank":        user.Stats.CurrentRank,
 		"successRate":        user.GetSuccessRate(),
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetUserRanking returns the user's ranking and leaderboard position
@@ -286,10 +295,13 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"position":    position,
 		"totalUsers":  len(users),
 		"currentRank": user.Stats.CurrentRank,
 		"totalPoints": user.Stats.TotalPoints,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
