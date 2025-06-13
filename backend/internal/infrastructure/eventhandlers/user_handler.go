@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/parkertr2/footy-tipping/internal/domain"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository"
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 // UserEventHandler handles user-related events

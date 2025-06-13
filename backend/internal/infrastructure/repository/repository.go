@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/parkertr2/footy-tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/domain"
 )
 
 // Common repository errors

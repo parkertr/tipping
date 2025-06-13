@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 // EventStore defines the interface for event storage operations needed by handlers

@@ -1,4 +1,4 @@
-module github.com/parkertr2/footy-tipping
+module github.com/parkertr/tipping
 
 go 1.24.2
 

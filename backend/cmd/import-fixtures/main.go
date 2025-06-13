@@ -11,10 +11,10 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventhandlers"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventstore"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository/postgres"
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/internal/infrastructure/eventhandlers"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 // MatchFixture represents a match fixture from the JSON file

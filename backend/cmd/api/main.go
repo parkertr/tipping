@@ -11,7 +11,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/infrastructure/api/server"
 )
 
 func main() {

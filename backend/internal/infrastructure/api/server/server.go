@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/api/handlers"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventstore"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository/postgres"
+	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"
 )
 
 // Server represents the HTTP server

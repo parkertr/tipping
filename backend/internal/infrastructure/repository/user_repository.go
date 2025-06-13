@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/parkertr2/footy-tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/domain"
 )
 
 // UserRepository defines the interface for user data access

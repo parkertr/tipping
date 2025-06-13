@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 func TestNewPostgresEventStore(t *testing.T) {

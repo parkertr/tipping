@@ -8,7 +8,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 // PostgresEventStore implements EventStore using PostgreSQL

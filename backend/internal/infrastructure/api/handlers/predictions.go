@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/parkertr2/footy-tipping/internal/domain"
-	"github.com/parkertr2/footy-tipping/pkg/events"
-	"github.com/parkertr2/footy-tipping/pkg/utils"
+	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/pkg/events"
+	"github.com/parkertr/tipping/pkg/utils"
 )
 
 type PredictionHandler struct {
