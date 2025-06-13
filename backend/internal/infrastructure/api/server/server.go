@@ -89,6 +89,11 @@ func (s *Server) setupRoutes() {
 	protected.HandleFunc("/matches/{matchId}/predictions/{userId}", predHandler.GetUserPredictionForMatch).Methods("GET")
 }
 
+// ServeHTTP implements the http.Handler interface
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
+}
+
 // Start starts the HTTP server
 func (s *Server) Start(addr string) error {
 	return http.ListenAndServe(addr, s.router)
