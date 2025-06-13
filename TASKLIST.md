@@ -127,14 +127,14 @@ A football tipping application built with Go backend, React frontend, PostgreSQL
   - [x] Process `UserRegistered`, `UserProfileUpdated` events
 
 #### 1.3 Google OAuth Setup
-- [ ] Google Cloud Console configuration
-  - [ ] Create new Google Cloud Project or use existing
-  - [ ] Enable Google+ API and Google OAuth2 API
-  - [ ] Create OAuth 2.0 credentials (Client ID and Secret)
-  - [ ] Configure authorized redirect URIs for development and production
-- [ ] Environment configuration
-  - [ ] Add Google OAuth credentials to `docker-compose.yml`
-  - [ ] Environment variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URL`
+- [x] Google Cloud Console configuration
+  - [x] Create new Google Cloud Project or use existing
+  - [x] Enable Google+ API and Google OAuth2 API
+  - [x] Create OAuth 2.0 credentials (Client ID and Secret)
+  - [x] Configure authorized redirect URIs for development and production
+- [x] Environment configuration
+  - [x] Add Google OAuth credentials to `docker-compose.yml`
+  - [x] Environment variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URL`
 
 #### 1.4 Authentication Middleware & JWT
 - [ ] Install Go dependencies
