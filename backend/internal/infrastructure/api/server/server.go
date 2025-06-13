@@ -75,6 +75,9 @@ func (s *Server) setupRoutes() {
 	protected.HandleFunc("/auth/refresh", authHandler.RefreshToken).Methods("POST")
 	protected.HandleFunc("/auth/me", authHandler.GetProfile).Methods("GET")
 	protected.HandleFunc("/auth/me", authHandler.UpdateProfile).Methods("PUT")
+	protected.HandleFunc("/auth/me/deactivate", authHandler.DeactivateProfile).Methods("POST")
+	protected.HandleFunc("/auth/me/stats", authHandler.GetUserStats).Methods("GET")
+	protected.HandleFunc("/auth/me/ranking", authHandler.GetUserRanking).Methods("GET")
 
 	// Match routes
 	protected.HandleFunc("/matches", matchHandler.CreateMatch).Methods("POST")

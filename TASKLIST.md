@@ -151,15 +151,18 @@ A football tipping application built with Go backend, React frontend, PostgreSQL
   - [x] Add user context to request for protected endpoints
 
 #### 1.5 Authentication Handlers
-- [ ] Google OAuth flow handlers
-  - [ ] `internal/infrastructure/api/handlers/auth.go`
-  - [ ] `GET /api/auth/google` - Redirect to Google OAuth
-  - [ ] `GET /api/auth/google/callback` - Handle OAuth callback
-  - [ ] `POST /api/auth/refresh` - Refresh JWT token
-  - [ ] `POST /api/auth/logout` - Invalidate token (optional)
-- [ ] User profile handlers
-  - [ ] `GET /api/auth/me` - Get current user profile
-  - [ ] `PUT /api/auth/me` - Update user profile
+- [x] Google OAuth flow handlers
+  - [x] `internal/infrastructure/api/handlers/auth.go`
+  - [x] `GET /api/auth/google` - Redirect to Google OAuth
+  - [x] `GET /api/auth/google/callback` - Handle OAuth callback
+  - [x] `POST /api/auth/refresh` - Refresh JWT token
+  - [x] `POST /api/auth/logout` - Invalidate token (optional)
+- [x] User profile handlers
+  - [x] `GET /api/auth/me` - Get current user profile
+  - [x] `PUT /api/auth/me` - Update user profile
+  - [x] `POST /api/auth/me/deactivate` - Deactivate user account
+  - [x] `GET /api/auth/me/stats` - Get user statistics
+  - [x] `GET /api/auth/me/ranking` - Get user ranking
 
 ### Phase 2: Frontend Integration 🔴
 #### 2.1 Authentication Context & State

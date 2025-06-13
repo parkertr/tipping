@@ -218,3 +218,78 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
+
+// DeactivateProfile deactivates the current user's account
+func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*domain.User)
+	if user == nil {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	user.Deactivate()
+
+	// Create UserDeactivated event
+	event := events.NewEvent("UserDeactivated", events.UserDeactivated{
+		UserID:    user.ID,
+		UpdatedAt: user.UpdatedAt,
+	})
+
+	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
+		http.Error(w, "Failed to save deactivation event", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// GetUserStats returns the current user's statistics
+func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*domain.User)
+	if user == nil {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"totalPoints":        user.Stats.TotalPoints,
+		"correctPredictions": user.Stats.CorrectPredictions,
+		"totalPredictions":   user.Stats.TotalPredictions,
+		"currentRank":        user.Stats.CurrentRank,
+		"successRate":        user.GetSuccessRate(),
+	})
+}
+
+// GetUserRanking returns the user's ranking and leaderboard position
+func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*domain.User)
+	if user == nil {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Get all active users sorted by points
+	users, err := h.userRepo.List(r.Context(), true)
+	if err != nil {
+		http.Error(w, "Failed to get user rankings", http.StatusInternalServerError)
+		return
+	}
+
+	// Find user's position in the ranking
+	var position int
+	for i, u := range users {
+		if u.ID == user.ID {
+			position = i + 1
+			break
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"position":    position,
+		"totalUsers":  len(users),
+		"currentRank": user.Stats.CurrentRank,
+		"totalPoints": user.Stats.TotalPoints,
+	})
+}
