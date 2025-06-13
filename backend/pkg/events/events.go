@@ -55,6 +55,30 @@ type PointsAwarded struct {
 	AwardedAt time.Time
 }
 
+// UserRegistered represents a new user registration event
+type UserRegistered struct {
+	ID        string
+	GoogleID  string
+	Email     string
+	Name      string
+	Picture   string
+	CreatedAt time.Time
+}
+
+// UserProfileUpdated represents a user profile update event
+type UserProfileUpdated struct {
+	UserID    string
+	Name      string
+	Picture   string
+	UpdatedAt time.Time
+}
+
+// UserDeactivated represents a user deactivation event
+type UserDeactivated struct {
+	UserID    string
+	UpdatedAt time.Time
+}
+
 // NewEvent creates a new event instance
 func NewEvent(eventType string, data interface{}) *Event {
 	return &Event{

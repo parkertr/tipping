@@ -6,23 +6,27 @@ import (
 
 func TestNewUser(t *testing.T) {
 	// Test case: Create new user
-	id := "user123"
-	username := "testuser"
+	googleID := "google-123"
 	email := "test@example.com"
+	name := "Test User"
+	picture := "https://example.com/pic.jpg"
 
-	user := NewUser(id, username, email)
+	user := NewUser(googleID, email, name, picture)
 
-	if user.ID != id {
-		t.Errorf("expected ID %v, got %v", id, user.ID)
-	}
-	if user.Username != username {
-		t.Errorf("expected Username %v, got %v", username, user.Username)
+	if user.GoogleID != googleID {
+		t.Errorf("expected GoogleID %v, got %v", googleID, user.GoogleID)
 	}
 	if user.Email != email {
 		t.Errorf("expected Email %v, got %v", email, user.Email)
 	}
-	if user.JoinDate.IsZero() {
-		t.Errorf("expected JoinDate to be set")
+	if user.Name != name {
+		t.Errorf("expected Name %v, got %v", name, user.Name)
+	}
+	if user.Picture != picture {
+		t.Errorf("expected Picture %v, got %v", picture, user.Picture)
+	}
+	if user.CreatedAt.IsZero() {
+		t.Errorf("expected CreatedAt to be set")
 	}
 	if user.Stats.TotalPoints != 0 {
 		t.Errorf("expected TotalPoints 0, got %v", user.Stats.TotalPoints)
@@ -39,7 +43,7 @@ func TestNewUser(t *testing.T) {
 }
 
 func TestUpdateStats(t *testing.T) {
-	user := NewUser("user123", "testuser", "test@example.com")
+	user := NewUser("google-123", "test@example.com", "Test User", "https://example.com/pic.jpg")
 
 	// Test case 1: Correct prediction
 	user.UpdateStats(3, true)
@@ -67,7 +71,7 @@ func TestUpdateStats(t *testing.T) {
 }
 
 func TestGetSuccessRate(t *testing.T) {
-	user := NewUser("user123", "testuser", "test@example.com")
+	user := NewUser("google-123", "test@example.com", "Test User", "https://example.com/pic.jpg")
 
 	// Test case 1: No predictions
 	if user.GetSuccessRate() != float64(0) {

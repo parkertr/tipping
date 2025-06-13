@@ -95,30 +95,36 @@ A football tipping application built with Go backend, React frontend, PostgreSQL
 - **Environment**: Development setup via Docker Compose
 - **Ports**: Backend (8080), Frontend (3000), PostgreSQL (5432)
 
+### 6. Code Quality & Testing
+- **Linting**: Run `make lint` after implementing any task and fix all issues before marking as complete
+- **Testing**: Run `make test` after implementing any task and ensure all tests pass before marking as complete
+- **Coverage**: Maintain high test coverage for new code
+- **Documentation**: Update relevant documentation when making changes
+
 ## Google Authentication Integration - Detailed Task Breakdown
 
 ### Phase 1: Backend Infrastructure 🔴
 #### 1.1 User Domain & Events
-- [ ] Create `User` domain model with Google profile data
-  - [ ] `internal/domain/user.go` - User struct with GoogleID, Email, Name, Picture
-  - [ ] User methods: `NewUser()`, `UpdateProfile()`, `IsActive()`
-- [ ] Define user-related events
-  - [ ] `UserRegistered` - New user signs up via Google
-  - [ ] `UserProfileUpdated` - User profile information changed
-  - [ ] `UserDeactivated` - User account disabled
-- [ ] Add user events to `pkg/events/events.go`
+- [x] Create `User` domain model with Google profile data
+  - [x] `internal/domain/user.go` - User struct with GoogleID, Email, Name, Picture
+  - [x] User methods: `NewUser()`, `UpdateProfile()`, `IsActive()`
+- [x] Define user-related events
+  - [x] `UserRegistered` - New user signs up via Google
+  - [x] `UserProfileUpdated` - User profile information changed
+  - [x] `UserDeactivated` - User account disabled
+- [x] Add user events to `pkg/events/events.go`
 
 #### 1.2 User Repository & Read Model
-- [ ] Create users database table and read model
-  - [ ] Migration: `users_view` table (id, google_id, email, name, picture_url, created_at, updated_at, is_active)
-  - [ ] Add migration to `backend/migrations/`
-- [ ] Implement user repository
-  - [ ] `internal/infrastructure/repository/user_repository.go` interface
-  - [ ] `internal/infrastructure/repository/postgres/user_repository.go` implementation
-  - [ ] Methods: `Create()`, `GetByGoogleID()`, `GetByID()`, `Update()`, `List()`
-- [ ] Create user event handler
-  - [ ] `internal/infrastructure/eventhandlers/user_handler.go`
-  - [ ] Process `UserRegistered`, `UserProfileUpdated` events
+- [x] Create users database table and read model
+  - [x] Migration: `users_view` table (id, google_id, email, name, picture_url, created_at, updated_at, is_active)
+  - [x] Add migration to `backend/migrations/`
+- [x] Implement user repository
+  - [x] `internal/infrastructure/repository/user_repository.go` interface
+  - [x] `internal/infrastructure/repository/postgres/user_repository.go` implementation
+  - [x] Methods: `Create()`, `GetByGoogleID()`, `GetByID()`, `Update()`, `List()`
+- [x] Create user event handler
+  - [x] `internal/infrastructure/eventhandlers/user_handler.go`
+  - [x] Process `UserRegistered`, `UserProfileUpdated` events
 
 #### 1.3 Google OAuth Setup
 - [ ] Google Cloud Console configuration
