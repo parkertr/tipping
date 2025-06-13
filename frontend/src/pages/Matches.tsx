@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect } from 'react'
 import { Container, Typography, Paper, Grid, Button, TextField } from '@mui/material'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 
 interface Match {
@@ -25,7 +25,6 @@ const Matches: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null)
   const [prediction, setPrediction] = useState('')
   const [userPredictions, setUserPredictions] = useState<Record<string, Prediction>>({})
-  const queryClient = useQueryClient()
 
   // TODO: Replace with actual user ID from authentication
   const currentUserId = 'user123'

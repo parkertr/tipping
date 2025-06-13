@@ -57,8 +57,9 @@ func (s *Server) setupRoutes() {
 	// Match routes
 	s.router.HandleFunc("/api/matches", matchHandler.CreateMatch).Methods("POST")
 	s.router.HandleFunc("/api/matches", matchHandler.ListMatches).Methods("GET")
-	s.router.HandleFunc("/api/matches/{id}", matchHandler.GetMatch).Methods("GET")
+	s.router.HandleFunc("/api/matches/upcoming", matchHandler.ListUpcomingMatches).Methods("GET")
 	s.router.HandleFunc("/api/matches/{id}/score", matchHandler.UpdateMatchScore).Methods("PUT")
+	s.router.HandleFunc("/api/matches/{id}", matchHandler.GetMatch).Methods("GET")
 
 	// Prediction routes
 	s.router.HandleFunc("/api/predictions", predictionHandler.CreatePrediction).Methods("POST")

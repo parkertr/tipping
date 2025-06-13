@@ -206,3 +206,28 @@ func (h *MatchHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error encoding matches: %v\n", err)
 	}
 }
+
+// ListUpcomingMatches retrieves upcoming matches (scheduled matches)
+func (h *MatchHandler) ListUpcomingMatches(w http.ResponseWriter, r *http.Request) {
+	status := string(domain.MatchStatusScheduled)
+
+	// Use read model with filters for upcoming matches
+	// For demo purposes, we'll show all scheduled matches regardless of date
+	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{
+		Status: &status,
+	})
+	if err != nil {
+		http.Error(w, "Failed to retrieve upcoming matches", http.StatusInternalServerError)
+		return
+	}
+
+	// Limit to next 5 matches for the home page
+	if len(matches) > 5 {
+		matches = matches[:5]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(matches); err != nil {
+		fmt.Printf("error encoding upcoming matches: %v\n", err)
+	}
+}
