@@ -64,6 +64,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/predictions", predictionHandler.CreatePrediction).Methods("POST")
 	s.router.HandleFunc("/api/users/{userId}/predictions", predictionHandler.GetUserPredictions).Methods("GET")
 	s.router.HandleFunc("/api/matches/{matchId}/predictions", predictionHandler.GetMatchPredictions).Methods("GET")
+	s.router.HandleFunc("/api/matches/{matchId}/predictions/{userId}", predictionHandler.GetUserPredictionForMatch).Methods("GET")
 }
 
 // ServeHTTP implements the http.Handler interface

@@ -6,13 +6,13 @@ import (
 
 // Prediction represents a user's prediction for a match
 type Prediction struct {
-	ID        string
-	UserID    string
-	MatchID   string
-	HomeGoals int
-	AwayGoals int
-	CreatedAt time.Time
-	Points    int
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	MatchID   string    `json:"matchId"`
+	HomeGoals int       `json:"homeGoals"`
+	AwayGoals int       `json:"awayGoals"`
+	CreatedAt time.Time `json:"createdAt"`
+	Points    int       `json:"points"`
 }
 
 // NewPrediction creates a new prediction instance

@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent } from 'react'
+import React, { useState, ChangeEvent, useEffect } from 'react'
 import { Container, Typography, Paper, Grid, Button, TextField } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
@@ -9,13 +9,26 @@ interface Match {
   awayTeam: string
   date: string
   competition: string
-  prediction?: string
+}
+
+interface Prediction {
+  id: string
+  userId: string
+  matchId: string
+  homeGoals: number
+  awayGoals: number
+  createdAt: string
+  points: number
 }
 
 const Matches: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null)
   const [prediction, setPrediction] = useState('')
+  const [userPredictions, setUserPredictions] = useState<Record<string, Prediction>>({})
   const queryClient = useQueryClient()
+
+  // TODO: Replace with actual user ID from authentication
+  const currentUserId = 'user123'
 
   const { data: matches, isLoading } = useQuery<Match[]>({
     queryKey: ['matches'],
@@ -25,20 +38,73 @@ const Matches: React.FC = () => {
     },
   })
 
+  // Fetch user predictions for all matches
+  useEffect(() => {
+    const fetchPredictions = async () => {
+      if (!matches) return
+
+      const predictions: Record<string, Prediction> = {}
+
+      for (const match of matches) {
+        try {
+          const response = await axios.get(`/api/matches/${match.id}/predictions/${currentUserId}`)
+          predictions[match.id] = response.data
+        } catch (error) {
+          // No prediction found for this match, which is fine
+        }
+      }
+
+      setUserPredictions(predictions)
+    }
+
+    fetchPredictions()
+  }, [matches, currentUserId])
+
   const submitPrediction = useMutation({
     mutationFn: async ({ matchId, prediction }: { matchId: string; prediction: string }) => {
-      const response = await axios.post(`/api/matches/${matchId}/predict`, { prediction })
+      // Parse prediction format "2-1" into homeGoals and awayGoals
+      const scoreParts = prediction.split('-')
+      if (scoreParts.length !== 2) {
+        throw new Error('Invalid prediction format. Please use format like "2-1"')
+      }
+
+      const homeGoals = parseInt(scoreParts[0].trim())
+      const awayGoals = parseInt(scoreParts[1].trim())
+
+      if (isNaN(homeGoals) || isNaN(awayGoals)) {
+        throw new Error('Invalid prediction format. Please use numbers like "2-1"')
+      }
+
+      // Use the correct API endpoint and format
+      const response = await axios.post('/api/predictions', {
+        userId: currentUserId,
+        matchId,
+        homeGoals,
+        awayGoals
+      })
       return response.data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['matches'] })
+    onSuccess: (data, variables) => {
+      // Update local predictions state
+      setUserPredictions(prev => ({
+        ...prev,
+        [variables.matchId]: data
+      }))
       setSelectedMatch(null)
       setPrediction('')
+    },
+    onError: (error: any) => {
+      console.error('Failed to submit prediction:', error)
+      alert(error.message || 'Failed to submit prediction')
     },
   })
 
   const handleSubmit = (matchId: string) => {
     submitPrediction.mutate({ matchId, prediction })
+  }
+
+  const formatPrediction = (pred: Prediction) => {
+    return `${pred.homeGoals}-${pred.awayGoals}`
   }
 
   return (
@@ -51,54 +117,62 @@ const Matches: React.FC = () => {
         {isLoading ? (
           <Typography>Loading matches...</Typography>
         ) : (
-          matches?.map((match: Match) => (
-            <Grid item xs={12} key={match.id}>
-              <Paper sx={{ p: 3 }}>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="h6">
-                      {match.homeTeam} vs {match.awayTeam}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {new Date(match.date).toLocaleDateString()} - {match.competition}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    {selectedMatch === match.id ? (
-                      <Grid container spacing={2}>
-                        <Grid item xs={8}>
-                          <TextField
-                            fullWidth
-                            label="Your Prediction"
-                            value={prediction}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => setPrediction(e.target.value)}
-                            placeholder="e.g., 2-1"
-                          />
+          matches?.map((match: Match) => {
+            const existingPrediction = userPredictions[match.id]
+
+            return (
+              <Grid item xs={12} key={match.id}>
+                <Paper sx={{ p: 3 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="h6">
+                        {match.homeTeam} vs {match.awayTeam}
+                      </Typography>
+                      <Typography color="text.secondary">
+                        {new Date(match.date).toLocaleDateString()} - {match.competition}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      {selectedMatch === match.id ? (
+                        <Grid container spacing={2}>
+                          <Grid item xs={8}>
+                            <TextField
+                              fullWidth
+                              label="Your Prediction"
+                              value={prediction}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => setPrediction(e.target.value)}
+                              placeholder="e.g., 2-1"
+                              helperText="Enter score prediction (e.g., 2-1)"
+                            />
+                          </Grid>
+                          <Grid item xs={4}>
+                            <Button
+                              variant="contained"
+                              onClick={() => handleSubmit(match.id)}
+                              disabled={!prediction || submitPrediction.isPending}
+                            >
+                              {submitPrediction.isPending ? 'Submitting...' : 'Submit'}
+                            </Button>
+                          </Grid>
                         </Grid>
-                        <Grid item xs={4}>
-                          <Button
-                            variant="contained"
-                            onClick={() => handleSubmit(match.id)}
-                            disabled={!prediction}
-                          >
-                            Submit
-                          </Button>
-                        </Grid>
-                      </Grid>
-                    ) : (
-                      <Button
-                        variant="outlined"
-                        onClick={() => setSelectedMatch(match.id)}
-                        disabled={!!match.prediction}
-                      >
-                        {match.prediction ? `Predicted: ${match.prediction}` : 'Make Prediction'}
-                      </Button>
-                    )}
+                      ) : (
+                        <Button
+                          variant="outlined"
+                          onClick={() => setSelectedMatch(match.id)}
+                          disabled={!!existingPrediction}
+                        >
+                          {existingPrediction
+                            ? `Predicted: ${formatPrediction(existingPrediction)}`
+                            : 'Make Prediction'
+                          }
+                        </Button>
+                      )}
+                    </Grid>
                   </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-          ))
+                </Paper>
+              </Grid>
+            )
+          })
         )}
       </Grid>
     </Container>

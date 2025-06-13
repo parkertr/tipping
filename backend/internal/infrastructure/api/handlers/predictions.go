@@ -223,3 +223,53 @@ func (h *PredictionHandler) GetMatchPredictions(w http.ResponseWriter, r *http.R
 		fmt.Printf("error encoding predictions: %v\n", err)
 	}
 }
+
+// GetUserPredictionForMatch retrieves a specific user's prediction for a specific match
+func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	matchID := vars["matchId"]
+	userID := vars["userId"]
+
+	events, err := h.eventStore.GetEventsByType(r.Context(), "PredictionMade")
+	if err != nil {
+		http.Error(w, "Failed to retrieve predictions", http.StatusInternalServerError)
+		return
+	}
+
+	for _, event := range events {
+		data, err := json.Marshal(event.Data)
+		if err != nil {
+			http.Error(w, "Failed to process prediction data", http.StatusInternalServerError)
+			return
+		}
+		var predictionMade struct {
+			ID        string    `json:"id"`
+			UserID    string    `json:"userId"`
+			MatchID   string    `json:"matchId"`
+			HomeGoals int       `json:"homeGoals"`
+			AwayGoals int       `json:"awayGoals"`
+			CreatedAt time.Time `json:"createdAt"`
+		}
+		if err := json.Unmarshal(data, &predictionMade); err != nil {
+			http.Error(w, "Failed to process prediction data", http.StatusInternalServerError)
+			return
+		}
+		if predictionMade.MatchID == matchID && predictionMade.UserID == userID {
+			prediction := domain.NewPrediction(
+				predictionMade.ID,
+				predictionMade.UserID,
+				predictionMade.MatchID,
+				predictionMade.HomeGoals,
+				predictionMade.AwayGoals,
+			)
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(prediction); err != nil {
+				fmt.Printf("error encoding prediction: %v\n", err)
+			}
+			return
+		}
+	}
+
+	// No prediction found
+	http.Error(w, "Prediction not found", http.StatusNotFound)
+}
