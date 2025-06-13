@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/parkertr/tipping/internal/auth"
 	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
+	"github.com/parkertr/tipping/internal/infrastructure/api/middleware"
 	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
 	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"
 )
@@ -16,6 +18,7 @@ type Server struct {
 	eventStore eventstore.EventStore
 	matchRepo  *postgres.MatchRepository
 	predRepo   *postgres.PredictionRepository
+	userRepo   *postgres.UserRepository
 }
 
 // NewServer creates a new server instance
@@ -23,6 +26,7 @@ func NewServer(db *sql.DB) (*Server, error) {
 	// Create repositories
 	matchRepo := postgres.NewMatchRepository(db)
 	predRepo := postgres.NewPredictionRepository(db)
+	userRepo := postgres.NewUserRepository(db)
 
 	// Create event store
 	eventStore, err := eventstore.NewPostgresEventStore(db)
@@ -36,6 +40,7 @@ func NewServer(db *sql.DB) (*Server, error) {
 		eventStore: eventStore,
 		matchRepo:  matchRepo,
 		predRepo:   predRepo,
+		userRepo:   userRepo,
 	}
 
 	// Add middleware
@@ -50,27 +55,43 @@ func NewServer(db *sql.DB) (*Server, error) {
 
 // setupRoutes configures the server routes
 func (s *Server) setupRoutes() {
+	// Create token manager
+	tokenManager := auth.NewTokenManager()
+
 	// Create handlers
 	matchHandler := handlers.NewMatchHandler(s.eventStore, s.matchRepo)
-	predictionHandler := handlers.NewPredictionHandler(s.eventStore)
+	predHandler := handlers.NewPredictionHandler(s.eventStore)
+	authHandler := handlers.NewAuthHandler(tokenManager, s.userRepo, s.eventStore)
+
+	// Public routes
+	s.router.HandleFunc("/api/auth/google", authHandler.GoogleLogin).Methods("GET")
+	s.router.HandleFunc("/api/auth/google/callback", authHandler.GoogleCallback).Methods("GET")
+
+	// Protected routes
+	protected := s.router.PathPrefix("/api").Subrouter()
+	protected.Use(middleware.AuthMiddleware(tokenManager, s.userRepo))
+
+	// Auth routes
+	protected.HandleFunc("/auth/refresh", authHandler.RefreshToken).Methods("POST")
+	protected.HandleFunc("/auth/me", authHandler.GetProfile).Methods("GET")
+	protected.HandleFunc("/auth/me", authHandler.UpdateProfile).Methods("PUT")
 
 	// Match routes
-	s.router.HandleFunc("/api/matches", matchHandler.CreateMatch).Methods("POST")
-	s.router.HandleFunc("/api/matches", matchHandler.ListMatches).Methods("GET")
-	s.router.HandleFunc("/api/matches/upcoming", matchHandler.ListUpcomingMatches).Methods("GET")
-	s.router.HandleFunc("/api/matches/{id}/score", matchHandler.UpdateMatchScore).Methods("PUT")
-	s.router.HandleFunc("/api/matches/{id}", matchHandler.GetMatch).Methods("GET")
+	protected.HandleFunc("/matches", matchHandler.CreateMatch).Methods("POST")
+	protected.HandleFunc("/matches", matchHandler.ListMatches).Methods("GET")
+	protected.HandleFunc("/matches/{id}", matchHandler.GetMatch).Methods("GET")
+	protected.HandleFunc("/matches/{id}/score", matchHandler.UpdateMatchScore).Methods("PUT")
 
 	// Prediction routes
-	s.router.HandleFunc("/api/predictions", predictionHandler.CreatePrediction).Methods("POST")
-	s.router.HandleFunc("/api/users/{userId}/predictions", predictionHandler.GetUserPredictions).Methods("GET")
-	s.router.HandleFunc("/api/matches/{matchId}/predictions", predictionHandler.GetMatchPredictions).Methods("GET")
-	s.router.HandleFunc("/api/matches/{matchId}/predictions/{userId}", predictionHandler.GetUserPredictionForMatch).Methods("GET")
+	protected.HandleFunc("/predictions", predHandler.CreatePrediction).Methods("POST")
+	protected.HandleFunc("/users/{userId}/predictions", predHandler.GetUserPredictions).Methods("GET")
+	protected.HandleFunc("/matches/{matchId}/predictions", predHandler.GetMatchPredictions).Methods("GET")
+	protected.HandleFunc("/matches/{matchId}/predictions/{userId}", predHandler.GetUserPredictionForMatch).Methods("GET")
 }
 
-// ServeHTTP implements the http.Handler interface
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.router.ServeHTTP(w, r)
+// Start starts the HTTP server
+func (s *Server) Start(addr string) error {
+	return http.ListenAndServe(addr, s.router)
 }
 
 // Close cleans up any resources used by the server

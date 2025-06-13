@@ -137,18 +137,18 @@ A football tipping application built with Go backend, React frontend, PostgreSQL
   - [x] Environment variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URL`
 
 #### 1.4 Authentication Middleware & JWT
-- [ ] Install Go dependencies
-  - [ ] `go get golang.org/x/oauth2`
-  - [ ] `go get golang.org/x/oauth2/google`
-  - [ ] `go get github.com/golang-jwt/jwt/v5`
-- [ ] Implement JWT token management
-  - [ ] `internal/auth/jwt.go` - Generate, validate, refresh JWT tokens
-  - [ ] Token claims structure with user ID, email, expiration
-  - [ ] JWT secret management via environment variables
-- [ ] Create authentication middleware
-  - [ ] `internal/infrastructure/api/middleware/auth.go`
-  - [ ] Extract and validate JWT from Authorization header
-  - [ ] Add user context to request for protected endpoints
+- [x] Install Go dependencies
+  - [x] `go get golang.org/x/oauth2`
+  - [x] `go get golang.org/x/oauth2/google`
+  - [x] `go get github.com/golang-jwt/jwt/v5`
+- [x] Implement JWT token management
+  - [x] `internal/auth/jwt.go` - Generate, validate, refresh JWT tokens
+  - [x] Token claims structure with user ID, email, expiration
+  - [x] JWT secret management via environment variables
+- [x] Create authentication middleware
+  - [x] `internal/infrastructure/api/middleware/auth.go`
+  - [x] Extract and validate JWT from Authorization header
+  - [x] Add user context to request for protected endpoints
 
 #### 1.5 Authentication Handlers
 - [ ] Google OAuth flow handlers
