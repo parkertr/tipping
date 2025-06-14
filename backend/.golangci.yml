@@ -1,4 +1,6 @@
-version: "2"
+linters-settings:
+  govet:
+    check-shadowing: true
 
 linters:
   enable:
@@ -9,3 +11,7 @@ linters:
 run:
   timeout: 5m
   tests: true
+  skip-dirs:
+    - vendor
+    - mocks
+    - bin

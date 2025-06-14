@@ -27,7 +27,7 @@ jobs:
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Run linter
-        run: make lint
+        run: cd backend && golangci-lint run --no-config ./...
 
       - name: Run tests
         run: cd backend && go test ./...
