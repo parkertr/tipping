@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 
 	"github.com/parkertr/tipping/internal/domain"
 )
@@ -111,9 +113,14 @@ func (r *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.U
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			// Log the error but don't fail the request
+			log.Printf("Error closing rows: %v", cerr)
+		}
+	}()
 
 	var users []*domain.User
 	for rows.Next() {

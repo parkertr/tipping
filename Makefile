@@ -1,4 +1,4 @@
-.PHONY: help test test-backend test-frontend build start stop restart logs clean dev setup import-fixtures
+.PHONY: help test test-backend test-frontend build start stop restart logs clean dev setup import-fixtures lint
 
 # Default target
 help: ## Show this help message
@@ -98,7 +98,8 @@ fmt: ## Format Go code
 	cd backend && go fmt ./...
 
 lint: ## Run Go linter
-	cd backend && go vet ./...
+	@echo "Running linters..."
+	@cd backend && golangci-lint run
 
 mod-tidy: ## Tidy Go modules
 	cd backend && go mod tidy

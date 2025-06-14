@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 
@@ -72,7 +73,12 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			// Log the error but don't fail the request
+			log.Printf("Error closing response body: %v", cerr)
+		}
+	}()
 
 	var userInfo struct {
 		ID            string `json:"id"`
@@ -142,9 +148,12 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 
 	// Return the token to the client
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"token": jwtToken,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // RefreshToken generates a new JWT token
@@ -165,9 +174,12 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	// Return the new token
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetProfile returns the current user's profile
