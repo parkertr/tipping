@@ -21,3 +21,24 @@
 - **Task:**
   - [ ] In `server_test.go`, review the test setup and handlers for `/api/auth/google` and `/api/auth/google/callback` to ensure the correct status codes are returned.
   - [ ] Update the tests or the handler logic so that the expected status codes match the actual behavior.
+
+---
+
+## 3. internal/infrastructure/eventstore
+**Test:** `TestGetEvents`
+- **Errors:**
+  - `TestGetEvents/Get_match_events`: Multiple field mismatches in event data:
+    - Expected ID match123, got <nil>
+    - Expected HomeTeam Team A, got <nil>
+    - Expected AwayTeam Team B, got <nil>
+    - Expected Competition Premier League, got <nil>
+  - `TestGetEvents/Get_prediction_events`: Multiple field mismatches in event data:
+    - Expected ID pred123, got <nil>
+    - Expected UserID user123, got <nil>
+    - Expected MatchID match123, got <nil>
+    - Expected HomeGoals 2, got <nil>
+    - Expected AwayGoals 1, got <nil>
+- **Task:**
+  - [ ] In `eventstore_test.go`, review the event data handling in `TestGetEvents` to ensure proper event data is being saved and retrieved.
+  - [ ] Check if the event data is being properly serialized/deserialized in the event store implementation.
+  - [ ] Verify that the test data setup matches the expected event structure.
