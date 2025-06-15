@@ -9,7 +9,9 @@
   - Panic: `mock: I don't know what to return because the method call was unexpected.`
   - The test calls `GetEventsByType` on a mock, but the mock was not set up with `.On("GetEventsByType")`.
 - **Task:**
-  - [ ] In `predictions_test.go`, set up the mock for `GetEventsByType` with `.On("GetEventsByType")` and a suitable `.Return(...)` for the test.
+  - [x] In `predictions_test.go`, set up the mock for `GetEventsByType` with `.On("GetEventsByType")` and a suitable `.Return(...)` for the test.
+  - [x] Ensure each test case uses its own mock to avoid state leakage between tests.
+  - [x] Verify the handler returns an empty array for users with no predictions.
 
 ---
 

@@ -217,13 +217,13 @@ func TestCreatePrediction(t *testing.T) {
 
 func TestGetUserPredictions(t *testing.T) {
 	t.Parallel()
-	// Create mock event store
-	mockStore := new(mocks.MockEventStore)
-	handler := handlers.NewPredictionHandler(mockStore)
 
 	// Test case 1: User has predictions
 	t.Run("User has predictions", func(t *testing.T) {
 		t.Parallel()
+		// Create mock event store
+		mockStore := new(mocks.MockEventStore)
+		handler := handlers.NewPredictionHandler(mockStore)
 		userID := "user123"
 
 		// Create request with mux vars
@@ -280,6 +280,9 @@ func TestGetUserPredictions(t *testing.T) {
 	// Test case 2: User has no predictions
 	t.Run("User has no predictions", func(t *testing.T) {
 		t.Parallel()
+		// Create mock event store
+		mockStore := new(mocks.MockEventStore)
+		handler := handlers.NewPredictionHandler(mockStore)
 		userID := "user123"
 
 		// Create request with mux vars
@@ -287,8 +290,25 @@ func TestGetUserPredictions(t *testing.T) {
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"userId": userID})
 
-		// Set up mock expectation for GetEventsByType (no events)
-		mockStore.On("GetEventsByType", req.Context(), "PredictionMade").Return([]*events.Event{}, nil)
+		// Create a mock event for a different user to ensure filtering works
+		predictionMade := events.PredictionMade{
+			ID:        "pred789",
+			UserID:    "different_user",
+			MatchID:   "match789",
+			HomeGoals: 1,
+			AwayGoals: 1,
+			CreatedAt: time.Now(),
+		}
+		event := &events.Event{
+			ID:        "event789",
+			Type:      "PredictionMade",
+			Data:      predictionMade,
+			Timestamp: time.Now(),
+			Version:   1,
+		}
+
+		// Set up mock expectation for GetEventsByType with an event for a different user
+		mockStore.On("GetEventsByType", req.Context(), "PredictionMade").Return([]*events.Event{event}, nil)
 
 		// Handle request
 		handler.GetUserPredictions(rr, req)
@@ -297,6 +317,16 @@ func TestGetUserPredictions(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
+		// Verify the response body is an empty array
+		var predictions []*domain.Prediction
+		if err := json.NewDecoder(rr.Body).Decode(&predictions); err != nil {
+			t.Errorf("failed to decode response: %v", err)
+		}
+		if len(predictions) != 0 {
+			t.Errorf("expected empty predictions array, got %d predictions", len(predictions))
+		}
+
 		mockStore.AssertExpectations(t)
 	})
 }
