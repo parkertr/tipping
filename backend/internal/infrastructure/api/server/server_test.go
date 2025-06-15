@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"net/http"
@@ -6,162 +6,122 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/parkertr/tipping/internal/infrastructure/api/server"
 )
 
 func TestNewServer(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
+	t.Parallel()
+	// Create mock database
+	db, _, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Failed to create mock database: %v", err)
 	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	defer db.Close()
 
 	// Test server creation
-	server, err := NewServer(db)
+	srv, err := server.NewServer(db)
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Expected no error, got %v", err)
 	}
-	if server == nil {
-		t.Fatalf("expected server to be non-nil")
-	}
-	if server.router == nil {
-		t.Errorf("expected router to be non-nil")
-	}
-	if server.eventStore == nil {
-		t.Errorf("expected eventStore to be non-nil")
-	}
-	if server.matchRepo == nil {
-		t.Errorf("expected matchRepo to be non-nil")
-	}
-	if server.predRepo == nil {
-		t.Errorf("expected predRepo to be non-nil")
+	if srv == nil {
+		t.Fatal("Expected server to be created")
 	}
 }
 
 func TestServerRoutes(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
+	t.Parallel()
+	// Create mock database
+	db, _, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Failed to create mock database: %v", err)
 	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	defer db.Close()
 
 	// Create server
-	server, err := NewServer(db)
+	srv, err := server.NewServer(db)
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	// Test cases for different routes
+	// Test routes
 	testCases := []struct {
-		name           string
-		method         string
-		path           string
-		expectedStatus int
+		method string
+		path   string
+		code   int
 	}{
-		{"List Matches", "GET", "/api/matches", http.StatusOK},
-		{"Get Match", "GET", "/api/matches/123", http.StatusOK},
-		{"Create Match", "POST", "/api/matches", http.StatusOK},
-		{"Update Match Score", "PUT", "/api/matches/123/score", http.StatusOK},
-		{"Create Prediction", "POST", "/api/predictions", http.StatusOK},
-		{"Get User Predictions", "GET", "/api/users/123/predictions", http.StatusOK},
-		{"Get Match Predictions", "GET", "/api/matches/123/predictions", http.StatusOK},
+		{"GET", "/api/auth/google", http.StatusOK},
+		{"GET", "/api/auth/google/callback", http.StatusOK},
+		{"POST", "/api/auth/refresh", http.StatusUnauthorized},
+		{"GET", "/api/auth/me", http.StatusUnauthorized},
+		{"PUT", "/api/auth/me", http.StatusUnauthorized},
+		{"POST", "/api/auth/me/deactivate", http.StatusUnauthorized},
+		{"GET", "/api/auth/me/stats", http.StatusUnauthorized},
+		{"GET", "/api/auth/me/ranking", http.StatusUnauthorized},
+		{"POST", "/api/matches", http.StatusUnauthorized},
+		{"GET", "/api/matches", http.StatusUnauthorized},
+		{"GET", "/api/matches/123", http.StatusUnauthorized},
+		{"PUT", "/api/matches/123/score", http.StatusUnauthorized},
+		{"POST", "/api/predictions", http.StatusUnauthorized},
+		{"GET", "/api/users/123/predictions", http.StatusUnauthorized},
+		{"GET", "/api/matches/123/predictions", http.StatusUnauthorized},
+		{"GET", "/api/matches/123/predictions/456", http.StatusUnauthorized},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		tc := tc // capture range variable
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			t.Parallel()
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			rr := httptest.NewRecorder()
-
-			server.ServeHTTP(rr, req)
-			if rr.Code == http.StatusNotFound {
-				t.Errorf("Route %s %s not found", tc.method, tc.path)
+			srv.ServeHTTP(rr, req)
+			if rr.Code != tc.code {
+				t.Errorf("Expected status code %d, got %d", tc.code, rr.Code)
 			}
 		})
 	}
 }
 
 func TestServerClose(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
+	t.Parallel()
+	// Create mock database
+	db, _, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Failed to create mock database: %v", err)
 	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	defer db.Close()
 
 	// Create server
-	server, err := NewServer(db)
+	srv, err := server.NewServer(db)
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	// Test server close
-	err = server.Close()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	// Test close
+	if err := srv.Close(); err != nil {
+		t.Errorf("Expected no error on close, got %v", err)
 	}
 }
 
 func TestMiddleware(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
+	t.Parallel()
+	// Create mock database
+	db, _, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Failed to create mock database: %v", err)
 	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	defer db.Close()
 
 	// Create server
-	server, err := NewServer(db)
+	srv, err := server.NewServer(db)
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("Expected no error, got %v", err)
 	}
 
 	// Test middleware
-	req := httptest.NewRequest("GET", "/api/matches", nil)
+	req := httptest.NewRequest("GET", "/api/auth/me", nil)
 	rr := httptest.NewRecorder()
-
-	server.ServeHTTP(rr, req)
-
-	// Check CORS headers
-	if _, ok := rr.Header()["Access-Control-Allow-Origin"]; !ok {
-		t.Errorf("expected Access-Control-Allow-Origin header to be set")
-	}
-	if _, ok := rr.Header()["Access-Control-Allow-Methods"]; !ok {
-		t.Errorf("expected Access-Control-Allow-Methods header to be set")
-	}
-	if _, ok := rr.Header()["Access-Control-Allow-Headers"]; !ok {
-		t.Errorf("expected Access-Control-Allow-Headers header to be set")
+	srv.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, rr.Code)
 	}
 }

@@ -22,6 +22,25 @@ func NewPredictionHandler(eventStore EventStore) *PredictionHandler {
 	}
 }
 
+// CreatePredictionRequest represents the request body for creating a prediction
+type CreatePredictionRequest struct {
+	UserID    string `json:"userId"`
+	MatchID   string `json:"matchId"`
+	HomeGoals int    `json:"homeGoals"`
+	AwayGoals int    `json:"awayGoals"`
+}
+
+// PredictionResponse represents the response body for prediction operations
+type PredictionResponse struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	MatchID   string    `json:"matchId"`
+	HomeGoals int       `json:"homeGoals"`
+	AwayGoals int       `json:"awayGoals"`
+	CreatedAt time.Time `json:"createdAt"`
+	Points    int       `json:"points"`
+}
+
 // CreatePrediction handles the creation of a new prediction
 func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Request) {
 	var request struct {
@@ -143,7 +162,7 @@ func (h *PredictionHandler) GetUserPredictions(w http.ResponseWriter, r *http.Re
 	for _, event := range events {
 		data, err := json.Marshal(event.Data)
 		if err != nil {
-			http.Error(w, "Failed to process prediction data", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to process prediction data: %v", err), http.StatusInternalServerError)
 			return
 		}
 		var predictionMade struct {
@@ -191,7 +210,7 @@ func (h *PredictionHandler) GetMatchPredictions(w http.ResponseWriter, r *http.R
 	for _, event := range events {
 		data, err := json.Marshal(event.Data)
 		if err != nil {
-			http.Error(w, "Failed to process prediction data", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to process prediction data: %v", err), http.StatusInternalServerError)
 			return
 		}
 		var predictionMade struct {
@@ -239,7 +258,7 @@ func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *
 	for _, event := range events {
 		data, err := json.Marshal(event.Data)
 		if err != nil {
-			http.Error(w, "Failed to process prediction data", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to process prediction data: %v", err), http.StatusInternalServerError)
 			return
 		}
 		var predictionMade struct {

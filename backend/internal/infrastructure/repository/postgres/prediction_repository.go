@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/parkertr/tipping/internal/domain"
@@ -88,8 +89,8 @@ func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.
 		&prediction.Points,
 	)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("prediction not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("prediction not found: %w", err)
 	}
 
 	if err != nil {
@@ -116,7 +117,7 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 		&prediction.Points,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("prediction not found for user %s and match %s", userID, matchID)
 	}
 
@@ -125,6 +126,32 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 	}
 
 	return prediction, nil
+}
+
+// scanPredictions scans rows into a slice of predictions
+func (r *PredictionRepository) scanPredictions(rows *sql.Rows) ([]*domain.Prediction, error) {
+	var predictions []*domain.Prediction
+	for rows.Next() {
+		prediction := &domain.Prediction{}
+		err := rows.Scan(
+			&prediction.ID,
+			&prediction.UserID,
+			&prediction.MatchID,
+			&prediction.HomeGoals,
+			&prediction.AwayGoals,
+			&prediction.Points,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan prediction: %w", err)
+		}
+		predictions = append(predictions, prediction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating predictions: %w", err)
+	}
+
+	return predictions, nil
 }
 
 func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([]*domain.Prediction, error) {
@@ -145,28 +172,7 @@ func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([
 		}
 	}()
 
-	var predictions []*domain.Prediction
-	for rows.Next() {
-		prediction := &domain.Prediction{}
-		err := rows.Scan(
-			&prediction.ID,
-			&prediction.UserID,
-			&prediction.MatchID,
-			&prediction.HomeGoals,
-			&prediction.AwayGoals,
-			&prediction.Points,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan prediction: %w", err)
-		}
-		predictions = append(predictions, prediction)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating predictions: %w", err)
-	}
-
-	return predictions, nil
+	return r.scanPredictions(rows)
 }
 
 func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) ([]*domain.Prediction, error) {
@@ -187,26 +193,5 @@ func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) 
 		}
 	}()
 
-	var predictions []*domain.Prediction
-	for rows.Next() {
-		prediction := &domain.Prediction{}
-		err := rows.Scan(
-			&prediction.ID,
-			&prediction.UserID,
-			&prediction.MatchID,
-			&prediction.HomeGoals,
-			&prediction.AwayGoals,
-			&prediction.Points,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan prediction: %w", err)
-		}
-		predictions = append(predictions, prediction)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating predictions: %w", err)
-	}
-
-	return predictions, nil
+	return r.scanPredictions(rows)
 }

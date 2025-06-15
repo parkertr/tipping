@@ -1,4 +1,4 @@
-package eventstore
+package eventstore_test
 
 import (
 	"context"
@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
 	"github.com/parkertr/tipping/pkg/events"
 )
 
 func TestNewPostgresEventStore(t *testing.T) {
+	t.Parallel()
 	// Create a mock database
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -24,7 +26,7 @@ func TestNewPostgresEventStore(t *testing.T) {
 	mock.ExpectPing()
 
 	// Create event store
-	store, err := NewPostgresEventStore(db)
+	store, err := eventstore.NewPostgresEventStore(db)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
@@ -34,8 +36,10 @@ func TestNewPostgresEventStore(t *testing.T) {
 }
 
 func TestSaveEvent(t *testing.T) {
+	t.Parallel()
 	// Test case 1: Save match created event
 	t.Run("Save match created event", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
@@ -49,7 +53,7 @@ func TestSaveEvent(t *testing.T) {
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -79,6 +83,7 @@ func TestSaveEvent(t *testing.T) {
 
 	// Test case 2: Save prediction made event
 	t.Run("Save prediction made event", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
@@ -92,7 +97,7 @@ func TestSaveEvent(t *testing.T) {
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -123,8 +128,10 @@ func TestSaveEvent(t *testing.T) {
 }
 
 func TestGetEvents(t *testing.T) {
+	t.Parallel()
 	// Test case 1: Get match events
 	t.Run("Get match events", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
@@ -138,7 +145,7 @@ func TestGetEvents(t *testing.T) {
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -212,6 +219,7 @@ func TestGetEvents(t *testing.T) {
 
 	// Test case 2: Get prediction events
 	t.Run("Get prediction events", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
@@ -225,7 +233,7 @@ func TestGetEvents(t *testing.T) {
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}

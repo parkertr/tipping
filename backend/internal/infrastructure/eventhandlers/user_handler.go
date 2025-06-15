@@ -3,6 +3,7 @@ package eventhandlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
@@ -38,8 +39,12 @@ func (h *UserEventHandler) Handle(ctx context.Context, event *events.Event) erro
 // handleUserRegistered processes UserRegistered events
 func (h *UserEventHandler) handleUserRegistered(ctx context.Context, event *events.Event) error {
 	var data events.UserRegistered
-	if err := json.Unmarshal(event.Data.([]byte), &data); err != nil {
-		return err
+	eventData, ok := event.Data.([]byte)
+	if !ok {
+		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
+	}
+	if err := json.Unmarshal(eventData, &data); err != nil {
+		return fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
 
 	user := &domain.User{
@@ -65,8 +70,12 @@ func (h *UserEventHandler) handleUserRegistered(ctx context.Context, event *even
 // handleUserProfileUpdated processes UserProfileUpdated events
 func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *events.Event) error {
 	var data events.UserProfileUpdated
-	if err := json.Unmarshal(event.Data.([]byte), &data); err != nil {
-		return err
+	eventData, ok := event.Data.([]byte)
+	if !ok {
+		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
+	}
+	if err := json.Unmarshal(eventData, &data); err != nil {
+		return fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
 
 	user, err := h.userRepo.GetByID(ctx, data.UserID)
@@ -87,8 +96,12 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 // handleUserDeactivated processes UserDeactivated events
 func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *events.Event) error {
 	var data events.UserDeactivated
-	if err := json.Unmarshal(event.Data.([]byte), &data); err != nil {
-		return err
+	eventData, ok := event.Data.([]byte)
+	if !ok {
+		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
+	}
+	if err := json.Unmarshal(eventData, &data); err != nil {
+		return fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
 
 	user, err := h.userRepo.GetByID(ctx, data.UserID)

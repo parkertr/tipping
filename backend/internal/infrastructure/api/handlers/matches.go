@@ -28,6 +28,38 @@ func NewMatchHandler(eventStore EventStore, matchRepo repository.MatchRepository
 	}
 }
 
+// CreateMatchRequest represents the request body for creating a match
+type CreateMatchRequest struct {
+	HomeTeam    string    `json:"homeTeam"`
+	AwayTeam    string    `json:"awayTeam"`
+	Date        time.Time `json:"date"`
+	Competition string    `json:"competition"`
+}
+
+// UpdateScoreRequest represents the request body for updating a match score
+type UpdateScoreRequest struct {
+	HomeGoals int `json:"homeGoals"`
+	AwayGoals int `json:"awayGoals"`
+}
+
+// MatchResponse represents the response body for match operations
+type MatchResponse struct {
+	ID          string    `json:"id"`
+	HomeTeam    string    `json:"homeTeam"`
+	AwayTeam    string    `json:"awayTeam"`
+	Date        time.Time `json:"date"`
+	Competition string    `json:"competition"`
+	Status      string    `json:"status"`
+	Score       *Score    `json:"score"`
+}
+
+// Score represents a match score
+type Score struct {
+	HomeGoals int       `json:"homeGoals"`
+	AwayGoals int       `json:"awayGoals"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // CreateMatch handles the creation of a new match
 func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	var request struct {
@@ -42,13 +74,15 @@ func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	match := domain.NewMatch(
-		utils.GenerateID(),
-		request.HomeTeam,
-		request.AwayTeam,
-		request.Date,
-		request.Competition,
-	)
+	match := &domain.Match{
+		ID:          utils.GenerateID(),
+		HomeTeam:    request.HomeTeam,
+		AwayTeam:    request.AwayTeam,
+		Date:        request.Date,
+		Competition: request.Competition,
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
 
 	event := events.NewEvent("MatchCreated", events.MatchCreated{
 		ID:          match.ID,
@@ -140,7 +174,15 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Rebuild match from events
-	match = &domain.Match{}
+	match = &domain.Match{
+		ID:          "",
+		HomeTeam:    "",
+		AwayTeam:    "",
+		Date:        time.Time{},
+		Competition: "",
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
 	for _, event := range events {
 		switch event.Type {
 		case "MatchCreated":
@@ -195,7 +237,12 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 // ListMatches retrieves all matches from the read model
 func (h *MatchHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 	// Use read model for better performance and consistent date formatting
-	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{})
+	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{
+		Competition: nil,
+		StartDate:   nil,
+		EndDate:     nil,
+		Status:      nil,
+	})
 	if err != nil {
 		http.Error(w, "Failed to retrieve matches", http.StatusInternalServerError)
 		return
@@ -214,7 +261,10 @@ func (h *MatchHandler) ListUpcomingMatches(w http.ResponseWriter, r *http.Reques
 	// Use read model with filters for upcoming matches
 	// For demo purposes, we'll show all scheduled matches regardless of date
 	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{
-		Status: &status,
+		Status:      &status,
+		Competition: nil,
+		StartDate:   nil,
+		EndDate:     nil,
 	})
 	if err != nil {
 		http.Error(w, "Failed to retrieve upcoming matches", http.StatusInternalServerError)

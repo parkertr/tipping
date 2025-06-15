@@ -1,34 +1,36 @@
 package domain
 
 import (
+	"fmt"
 	"time"
 )
 
 // User represents a user in the system
 type User struct {
-	ID        string
-	GoogleID  string
-	Email     string
-	Name      string
-	Picture   string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	IsActive  bool
-	Stats     UserStats
+	ID        string    `json:"id"`
+	GoogleID  string    `json:"googleId"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	Picture   string    `json:"picture"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	IsActive  bool      `json:"isActive"`
+	Stats     UserStats `json:"stats"`
 }
 
 // UserStats represents a user's statistics
 type UserStats struct {
-	TotalPoints        int
-	CorrectPredictions int
-	TotalPredictions   int
-	CurrentRank        int
+	TotalPoints        int `json:"totalPoints"`
+	CorrectPredictions int `json:"correctPredictions"`
+	TotalPredictions   int `json:"totalPredictions"`
+	CurrentRank        int `json:"currentRank"`
 }
 
 // NewUser creates a new user instance
 func NewUser(googleID, email, name, picture string) *User {
 	now := time.Now()
 	return &User{
+		ID:        fmt.Sprintf("%d", now.UnixNano()),
 		GoogleID:  googleID,
 		Email:     email,
 		Name:      name,

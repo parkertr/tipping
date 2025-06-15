@@ -2,10 +2,11 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 var (
@@ -38,6 +39,11 @@ func (m *TokenManager) GenerateToken(userID string) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "tipping-app",
+			Subject:   userID,
+			ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+			Audience:  []string{"tipping-app"},
 		},
 	}
 

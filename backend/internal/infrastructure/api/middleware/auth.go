@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -39,8 +40,8 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 			// Validate the token
 			claims, err := tokenManager.ValidateToken(parts[1])
 			if err != nil {
-				if err == auth.ErrExpiredToken {
-					http.Error(w, "Token has expired", http.StatusUnauthorized)
+				if errors.Is(err, auth.ErrExpiredToken) {
+					http.Error(w, "Token expired", http.StatusUnauthorized)
 					return
 				}
 				http.Error(w, "Invalid token", http.StatusUnauthorized)

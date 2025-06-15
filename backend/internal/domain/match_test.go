@@ -1,88 +1,97 @@
-package domain
+package domain_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/parkertr/tipping/internal/domain"
 )
 
 func TestNewMatch(t *testing.T) {
-	// Test case: Create new match
-	id := "match123"
-	homeTeam := "Team A"
-	awayTeam := "Team B"
+	t.Parallel()
+
+	id := "match1"
+	homeTeam := "Arsenal"
+	awayTeam := "Chelsea"
 	date := time.Now()
 	competition := "Premier League"
 
-	match := NewMatch(id, homeTeam, awayTeam, date, competition)
+	match := domain.NewMatch(id, homeTeam, awayTeam, date, competition)
 
 	if match.ID != id {
-		t.Errorf("expected ID %v, got %v", id, match.ID)
+		t.Errorf("Expected ID %s, got %s", id, match.ID)
 	}
 	if match.HomeTeam != homeTeam {
-		t.Errorf("expected HomeTeam %v, got %v", homeTeam, match.HomeTeam)
+		t.Errorf("Expected HomeTeam %s, got %s", homeTeam, match.HomeTeam)
 	}
 	if match.AwayTeam != awayTeam {
-		t.Errorf("expected AwayTeam %v, got %v", awayTeam, match.AwayTeam)
+		t.Errorf("Expected AwayTeam %s, got %s", awayTeam, match.AwayTeam)
 	}
-	if !match.Date.Equal(date) {
-		t.Errorf("expected Date %v, got %v", date, match.Date)
+	if match.Date != date {
+		t.Errorf("Expected Date %v, got %v", date, match.Date)
 	}
 	if match.Competition != competition {
-		t.Errorf("expected Competition %v, got %v", competition, match.Competition)
+		t.Errorf("Expected Competition %s, got %s", competition, match.Competition)
 	}
-	if match.Status != MatchStatusScheduled {
-		t.Errorf("expected Status %v, got %v", MatchStatusScheduled, match.Status)
+	if match.Status != domain.MatchStatusScheduled {
+		t.Errorf("Expected Status %s, got %s", domain.MatchStatusScheduled, match.Status)
 	}
-	if match.Score != nil {
-		t.Errorf("expected Score to be nil, got %v", match.Score)
+	if match.Score == nil {
+		t.Errorf("Expected Score to be set")
+	}
+	if match.Score.HomeGoals != 0 || match.Score.AwayGoals != 0 {
+		t.Errorf("Expected initial Score to be 0-0")
 	}
 }
 
 func TestUpdateScore(t *testing.T) {
-	// Test case: Update match score
-	match := NewMatch("match123", "Team A", "Team B", time.Now(), "Premier League")
+	t.Parallel()
 
+	match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
 	homeGoals := 2
 	awayGoals := 1
+
 	match.UpdateScore(homeGoals, awayGoals)
 
 	if match.Score == nil {
-		t.Errorf("expected Score to be non-nil")
+		t.Errorf("Expected Score to be set")
 	}
 	if match.Score.HomeGoals != homeGoals {
-		t.Errorf("expected HomeGoals %v, got %v", homeGoals, match.Score.HomeGoals)
+		t.Errorf("Expected HomeGoals %d, got %d", homeGoals, match.Score.HomeGoals)
 	}
 	if match.Score.AwayGoals != awayGoals {
-		t.Errorf("expected AwayGoals %v, got %v", awayGoals, match.Score.AwayGoals)
+		t.Errorf("Expected AwayGoals %d, got %d", awayGoals, match.Score.AwayGoals)
 	}
 }
 
 func TestIsFinished(t *testing.T) {
-	match := NewMatch("match123", "Team A", "Team B", time.Now(), "Premier League")
+	t.Parallel()
 
-	// Test case 1: Match not finished
-	if match.IsFinished() {
-		t.Errorf("expected match to not be finished")
+	match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
+	match.Status = domain.MatchStatusFinished
+
+	if !match.IsFinished() {
+		t.Errorf("Expected IsFinished to be true")
 	}
 
-	// Test case 2: Match finished
-	match.Status = MatchStatusFinished
-	if !match.IsFinished() {
-		t.Errorf("expected match to be finished")
+	match.Status = domain.MatchStatusLive
+	if match.IsFinished() {
+		t.Errorf("Expected IsFinished to be false")
 	}
 }
 
 func TestIsLive(t *testing.T) {
-	match := NewMatch("match123", "Team A", "Team B", time.Now(), "Premier League")
+	t.Parallel()
 
-	// Test case 1: Match not live
-	if match.IsLive() {
-		t.Errorf("expected match to not be live")
+	match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
+	match.Status = domain.MatchStatusLive
+
+	if !match.IsLive() {
+		t.Errorf("Expected IsLive to be true")
 	}
 
-	// Test case 2: Match live
-	match.Status = MatchStatusLive
-	if !match.IsLive() {
-		t.Errorf("expected match to be live")
+	match.Status = domain.MatchStatusFinished
+	if match.IsLive() {
+		t.Errorf("Expected IsLive to be false")
 	}
 }

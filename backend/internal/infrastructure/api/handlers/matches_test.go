@@ -1,4 +1,4 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
 	"github.com/parkertr/tipping/internal/infrastructure/api/handlers/mocks"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
 	"github.com/parkertr/tipping/pkg/events"
@@ -18,13 +19,15 @@ import (
 
 // Test cases for match-related handlers
 func TestCreateMatch(t *testing.T) {
+	t.Parallel()
 	// Create mock event store and repository
 	mockStore := new(mocks.MockEventStore)
 	mockRepo := new(mocks.MockMatchRepository)
-	handler := NewMatchHandler(mockStore, mockRepo)
+	handler := handlers.NewMatchHandler(mockStore, mockRepo)
 
 	// Test case 1: Valid match creation
 	t.Run("Valid match creation", func(t *testing.T) {
+		t.Parallel()
 		matchDate := time.Now().Add(24 * time.Hour)
 		match := domain.Match{
 			HomeTeam:    "Team A",
@@ -32,6 +35,7 @@ func TestCreateMatch(t *testing.T) {
 			Date:        matchDate,
 			Competition: "Premier League",
 			Status:      domain.MatchStatusScheduled,
+			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 		}
 
 		// Create request
@@ -74,6 +78,7 @@ func TestCreateMatch(t *testing.T) {
 
 	// Test case 2: Invalid JSON
 	t.Run("Invalid JSON", func(t *testing.T) {
+		t.Parallel()
 		req := httptest.NewRequest("POST", "/api/matches", bytes.NewBufferString("invalid json"))
 		rr := httptest.NewRecorder()
 
@@ -86,13 +91,15 @@ func TestCreateMatch(t *testing.T) {
 }
 
 func TestGetMatch(t *testing.T) {
+	t.Parallel()
 	// Create mock event store and repository
 	mockStore := new(mocks.MockEventStore)
 	mockRepo := new(mocks.MockMatchRepository)
-	handler := NewMatchHandler(mockStore, mockRepo)
+	handler := handlers.NewMatchHandler(mockStore, mockRepo)
 
 	// Test case 1: Match found in repository
 	t.Run("Match found in repository", func(t *testing.T) {
+		t.Parallel()
 		matchID := "123"
 
 		// Create request with mux vars
@@ -104,12 +111,13 @@ func TestGetMatch(t *testing.T) {
 
 		// Create mock match
 		match := &domain.Match{
-			ID:          matchID,
+			ID:          "match1",
 			HomeTeam:    "Team A",
 			AwayTeam:    "Team B",
 			Date:        time.Now(),
 			Competition: "Premier League",
 			Status:      domain.MatchStatusScheduled,
+			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 		}
 
 		mockRepo.On("GetByID", req.Context(), matchID).Return(match, nil)
@@ -126,6 +134,7 @@ func TestGetMatch(t *testing.T) {
 
 	// Test case 2: Match not found, fallback to events
 	t.Run("Match not found, fallback to events", func(t *testing.T) {
+		t.Parallel()
 		matchID := "456"
 
 		// Create request with mux vars
@@ -150,13 +159,15 @@ func TestGetMatch(t *testing.T) {
 }
 
 func TestListMatches(t *testing.T) {
+	t.Parallel()
 	// Create mock event store and repository
 	mockStore := new(mocks.MockEventStore)
 	mockRepo := new(mocks.MockMatchRepository)
-	handler := NewMatchHandler(mockStore, mockRepo)
+	handler := handlers.NewMatchHandler(mockStore, mockRepo)
 
 	// Test case: List all matches from repository
 	t.Run("List all matches from repository", func(t *testing.T) {
+		t.Parallel()
 		// Create request
 		req := httptest.NewRequest("GET", "/api/matches", nil)
 		rr := httptest.NewRecorder()
@@ -170,6 +181,7 @@ func TestListMatches(t *testing.T) {
 				Date:        time.Now(),
 				Competition: "Premier League",
 				Status:      domain.MatchStatusScheduled,
+				Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 			},
 			{
 				ID:          "456",
@@ -178,6 +190,7 @@ func TestListMatches(t *testing.T) {
 				Date:        time.Now(),
 				Competition: "Premier League",
 				Status:      domain.MatchStatusScheduled,
+				Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 			},
 		}
 
@@ -193,13 +206,15 @@ func TestListMatches(t *testing.T) {
 }
 
 func TestUpdateMatchScore(t *testing.T) {
+	t.Parallel()
 	// Create mock event store and repository
 	mockStore := new(mocks.MockEventStore)
 	mockRepo := new(mocks.MockMatchRepository)
-	handler := NewMatchHandler(mockStore, mockRepo)
+	handler := handlers.NewMatchHandler(mockStore, mockRepo)
 
 	// Test case: Valid score update
 	t.Run("Valid score update", func(t *testing.T) {
+		t.Parallel()
 		matchID := "123"
 
 		// Create request with mux vars
@@ -214,12 +229,13 @@ func TestUpdateMatchScore(t *testing.T) {
 
 		// Mock repository calls for event handler
 		match := &domain.Match{
-			ID:          matchID,
+			ID:          "match1",
 			HomeTeam:    "Team A",
 			AwayTeam:    "Team B",
 			Date:        time.Now(),
 			Competition: "Premier League",
 			Status:      domain.MatchStatusScheduled,
+			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 		}
 		mockRepo.On("GetByID", req.Context(), matchID).Return(match, nil)
 		mockRepo.On("Update", req.Context(), mock.AnythingOfType("*domain.Match")).Return(nil)

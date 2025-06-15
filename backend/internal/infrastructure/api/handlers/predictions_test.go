@@ -1,4 +1,4 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
 	"github.com/parkertr/tipping/internal/infrastructure/api/handlers/mocks"
 	"github.com/parkertr/tipping/pkg/events"
 	"github.com/stretchr/testify/mock"
@@ -18,17 +19,19 @@ import (
 
 // Test cases for prediction-related handlers
 func TestCreatePrediction(t *testing.T) {
+	t.Parallel()
 	// Test case 1: Valid prediction creation
 	t.Run("Valid prediction creation", func(t *testing.T) {
+		t.Parallel()
 		mockStore := new(mocks.MockEventStore)
-		handler := NewPredictionHandler(mockStore)
-		prediction := domain.Prediction{
-			UserID:    "user123",
-			MatchID:   "match123",
-			HomeGoals: 2,
-			AwayGoals: 1,
-			CreatedAt: time.Now(),
-		}
+		handler := handlers.NewPredictionHandler(mockStore)
+		prediction := domain.NewPrediction(
+			"pred1",
+			"user1",
+			"match1",
+			2,
+			1,
+		)
 
 		// Create request
 		body, _ := json.Marshal(prediction)
@@ -86,8 +89,9 @@ func TestCreatePrediction(t *testing.T) {
 
 	// Test case 2: Invalid JSON
 	t.Run("Invalid JSON", func(t *testing.T) {
+		t.Parallel()
 		mockStore := new(mocks.MockEventStore)
-		handler := NewPredictionHandler(mockStore)
+		handler := handlers.NewPredictionHandler(mockStore)
 		req := httptest.NewRequest("POST", "/api/predictions", bytes.NewBufferString("invalid json"))
 		rr := httptest.NewRecorder()
 
@@ -100,14 +104,17 @@ func TestCreatePrediction(t *testing.T) {
 
 	// Test case 3: Match not found
 	t.Run("Match not found", func(t *testing.T) {
+		t.Parallel()
 		mockStore := new(mocks.MockEventStore)
-		handler := NewPredictionHandler(mockStore)
+		handler := handlers.NewPredictionHandler(mockStore)
 		prediction := domain.Prediction{
+			ID:        "pred123",
 			UserID:    "user123",
 			MatchID:   "nonexistent",
 			HomeGoals: 2,
 			AwayGoals: 1,
 			CreatedAt: time.Now(),
+			Points:    0,
 		}
 
 		// Create request
@@ -130,14 +137,17 @@ func TestCreatePrediction(t *testing.T) {
 
 	// Test case 4: Match already finished
 	t.Run("Match already finished", func(t *testing.T) {
+		t.Parallel()
 		mockStore := new(mocks.MockEventStore)
-		handler := NewPredictionHandler(mockStore)
+		handler := handlers.NewPredictionHandler(mockStore)
 		prediction := domain.Prediction{
+			ID:        "pred123",
 			UserID:    "user123",
 			MatchID:   "match123",
 			HomeGoals: 2,
 			AwayGoals: 1,
 			CreatedAt: time.Now(),
+			Points:    0,
 		}
 
 		// Create request
@@ -206,12 +216,14 @@ func TestCreatePrediction(t *testing.T) {
 }
 
 func TestGetUserPredictions(t *testing.T) {
+	t.Parallel()
 	// Create mock event store
 	mockStore := new(mocks.MockEventStore)
-	handler := NewPredictionHandler(mockStore)
+	handler := handlers.NewPredictionHandler(mockStore)
 
 	// Test case 1: User has predictions
 	t.Run("User has predictions", func(t *testing.T) {
+		t.Parallel()
 		userID := "user123"
 
 		// Create request with mux vars
@@ -252,6 +264,7 @@ func TestGetUserPredictions(t *testing.T) {
 			Version:   1,
 		}
 
+		// Set up mock expectation for GetEvents
 		mockStore.On("GetEventsByType", req.Context(), "PredictionMade").Return([]*events.Event{event1, event2}, nil)
 
 		// Handle request
@@ -266,17 +279,21 @@ func TestGetUserPredictions(t *testing.T) {
 
 	// Test case 2: User has no predictions
 	t.Run("User has no predictions", func(t *testing.T) {
-		userID := "user456"
+		t.Parallel()
+		userID := "user123"
 
 		// Create request with mux vars
 		req := httptest.NewRequest("GET", "/api/users/"+userID+"/predictions", nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"userId": userID})
 
+		// Set up mock expectation for GetEventsByType (no events)
 		mockStore.On("GetEventsByType", req.Context(), "PredictionMade").Return([]*events.Event{}, nil)
 
+		// Handle request
 		handler.GetUserPredictions(rr, req)
 
+		// Assert response
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
@@ -285,12 +302,14 @@ func TestGetUserPredictions(t *testing.T) {
 }
 
 func TestGetMatchPredictions(t *testing.T) {
+	t.Parallel()
 	// Create mock event store
 	mockStore := new(mocks.MockEventStore)
-	handler := NewPredictionHandler(mockStore)
+	handler := handlers.NewPredictionHandler(mockStore)
 
 	// Test case 1: Match has predictions
 	t.Run("Match has predictions", func(t *testing.T) {
+		t.Parallel()
 		matchID := "match123"
 
 		// Create request with mux vars
@@ -319,8 +338,8 @@ func TestGetMatchPredictions(t *testing.T) {
 			ID:        "pred456",
 			UserID:    "user456",
 			MatchID:   matchID,
-			HomeGoals: 1,
-			AwayGoals: 2,
+			HomeGoals: 0,
+			AwayGoals: 0,
 			CreatedAt: time.Now(),
 		}
 		event2 := &events.Event{
@@ -331,6 +350,7 @@ func TestGetMatchPredictions(t *testing.T) {
 			Version:   1,
 		}
 
+		// Set up mock expectation for GetEvents
 		mockStore.On("GetEventsByType", req.Context(), "PredictionMade").Return([]*events.Event{event1, event2}, nil)
 
 		// Handle request
@@ -345,17 +365,21 @@ func TestGetMatchPredictions(t *testing.T) {
 
 	// Test case 2: Match has no predictions
 	t.Run("Match has no predictions", func(t *testing.T) {
-		matchID := "match456"
+		t.Parallel()
+		matchID := "match123"
 
 		// Create request with mux vars
 		req := httptest.NewRequest("GET", "/api/matches/"+matchID+"/predictions", nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"matchId": matchID})
 
+		// Set up mock expectation for GetEventsByType (no events)
 		mockStore.On("GetEventsByType", req.Context(), "PredictionMade").Return([]*events.Event{}, nil)
 
+		// Handle request
 		handler.GetMatchPredictions(rr, req)
 
+		// Assert response
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}

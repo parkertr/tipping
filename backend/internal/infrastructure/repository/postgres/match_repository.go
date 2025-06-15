@@ -3,8 +3,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
@@ -104,7 +106,15 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	`
 
 	var homeGoals, awayGoals sql.NullInt32
-	match := &domain.Match{}
+	match := &domain.Match{
+		ID:          "",
+		HomeTeam:    "",
+		AwayTeam:    "",
+		Date:        time.Time{},
+		Competition: "",
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&match.ID,
 		&match.HomeTeam,
@@ -116,8 +126,8 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 		&awayGoals,
 	)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("match not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("match not found: %w", err)
 	}
 
 	if err != nil {
@@ -186,7 +196,15 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	var matches []*domain.Match
 	for rows.Next() {
 		var homeGoals, awayGoals sql.NullInt32
-		match := &domain.Match{}
+		match := &domain.Match{
+			ID:          "",
+			HomeTeam:    "",
+			AwayTeam:    "",
+			Date:        time.Time{},
+			Competition: "",
+			Status:      domain.MatchStatusScheduled,
+			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+		}
 		err := rows.Scan(
 			&match.ID,
 			&match.HomeTeam,

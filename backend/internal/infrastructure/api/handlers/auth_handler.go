@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -59,94 +60,24 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Exchange the code for a token
-	token, err := h.config.Exchange(context.Background(), code)
+	userInfo, err := h.getGoogleUserInfo(r.Context(), code)
 	if err != nil {
-		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Get user info from Google
-	client := h.config.Client(context.Background(), token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	user, err := h.getOrCreateUser(r.Context(), userInfo)
 	if err != nil {
-		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
-		return
-	}
-	defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			// Log the error but don't fail the request
-			log.Printf("Error closing response body: %v", cerr)
-		}
-	}()
-
-	var userInfo struct {
-		ID            string `json:"id"`
-		Email         string `json:"email"`
-		VerifiedEmail bool   `json:"verified_email"`
-		Name          string `json:"name"`
-		Picture       string `json:"picture"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		http.Error(w, "Failed to decode user info", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Check if user exists
-	existingUser, err := h.userRepo.GetByGoogleID(r.Context(), userInfo.ID)
-	if err != nil {
-		http.Error(w, "Failed to check user existence", http.StatusInternalServerError)
-		return
-	}
-
-	var user *domain.User
-	if existingUser == nil {
-		// Create new user
-		user = domain.NewUser(userInfo.ID, userInfo.Email, userInfo.Name, userInfo.Picture)
-		user.ID = utils.GenerateID()
-
-		// Create UserRegistered event
-		event := events.NewEvent("UserRegistered", events.UserRegistered{
-			ID:        user.ID,
-			GoogleID:  user.GoogleID,
-			Email:     user.Email,
-			Name:      user.Name,
-			Picture:   user.Picture,
-			CreatedAt: user.CreatedAt,
-		})
-
-		if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-			http.Error(w, "Failed to save user registration event", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// Update existing user
-		user = existingUser
-		user.UpdateProfile(userInfo.Name, userInfo.Picture)
-
-		// Create UserProfileUpdated event
-		event := events.NewEvent("UserProfileUpdated", events.UserProfileUpdated{
-			UserID:    user.ID,
-			Name:      user.Name,
-			Picture:   user.Picture,
-			UpdatedAt: user.UpdatedAt,
-		})
-
-		if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-			http.Error(w, "Failed to save profile update event", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Generate JWT token
 	jwtToken, err := h.tokenManager.GenerateToken(user.ID)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	// Return the token to the client
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{
 		"token": jwtToken,
@@ -156,23 +87,108 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// getGoogleUserInfo retrieves user information from Google
+func (h *AuthHandler) getGoogleUserInfo(ctx context.Context, code string) (*struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}, error) {
+	token, err := h.config.Exchange(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
+	}
+
+	client := h.config.Client(ctx, token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			log.Printf("Error closing response body: %v", cerr)
+		}
+	}()
+
+	var userInfo struct {
+		ID            string `json:"id"`
+		Email         string `json:"email"`
+		VerifiedEmail bool   `json:"verifiedEmail"`
+		Name          string `json:"name"`
+		Picture       string `json:"picture"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	return &userInfo, nil
+}
+
+// getOrCreateUser retrieves an existing user or creates a new one
+func (h *AuthHandler) getOrCreateUser(ctx context.Context, userInfo *struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}) (*domain.User, error) {
+	existingUser, err := h.userRepo.GetByGoogleID(ctx, userInfo.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check user existence: %w", err)
+	}
+
+	var user *domain.User
+	if existingUser == nil {
+		user = domain.NewUser(userInfo.ID, userInfo.Email, userInfo.Name, userInfo.Picture)
+		user.ID = utils.GenerateID()
+
+		event := events.NewEvent("UserRegistered", events.UserRegistered{
+			ID:        user.ID,
+			GoogleID:  user.GoogleID,
+			Email:     user.Email,
+			Name:      user.Name,
+			Picture:   user.Picture,
+			CreatedAt: user.CreatedAt,
+		})
+
+		if err := h.eventStore.SaveEvent(ctx, event); err != nil {
+			return nil, fmt.Errorf("failed to save user registration event: %w", err)
+		}
+	} else {
+		user = existingUser
+		user.UpdateProfile(userInfo.Name, userInfo.Picture)
+
+		event := events.NewEvent("UserProfileUpdated", events.UserProfileUpdated{
+			UserID:    user.ID,
+			Name:      user.Name,
+			Picture:   user.Picture,
+			UpdatedAt: user.UpdatedAt,
+		})
+
+		if err := h.eventStore.SaveEvent(ctx, event); err != nil {
+			return nil, fmt.Errorf("failed to save profile update event: %w", err)
+		}
+	}
+
+	return user, nil
+}
+
 // RefreshToken generates a new JWT token
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	// Get the current user from context
-	user := r.Context().Value("user").(*domain.User)
-	if user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok {
+		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
 	}
 
-	// Generate new token
 	token, err := h.tokenManager.GenerateToken(user.ID)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	// Return the new token
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
@@ -217,7 +233,6 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	user.UpdateProfile(update.Name, update.Picture)
 
-	// Create UserProfileUpdated event
 	event := events.NewEvent("UserProfileUpdated", events.UserProfileUpdated{
 		UserID:    user.ID,
 		Name:      user.Name,
@@ -247,7 +262,6 @@ func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) 
 
 	user.Deactivate()
 
-	// Create UserDeactivated event
 	event := events.NewEvent("UserDeactivated", events.UserDeactivated{
 		UserID:    user.ID,
 		UpdatedAt: user.UpdatedAt,

@@ -40,6 +40,7 @@ func NewMatch(id, homeTeam, awayTeam string, date time.Time, competition string)
 		Date:        date,
 		Competition: competition,
 		Status:      MatchStatusScheduled,
+		Score:       &Score{HomeGoals: 0, AwayGoals: 0},
 	}
 }
 
@@ -59,4 +60,18 @@ func (m *Match) IsFinished() bool {
 // IsLive returns true if the match is currently live
 func (m *Match) IsLive() bool {
 	return m.Status == MatchStatusLive
+}
+
+// GetResult returns the match result (home win, away win, or draw)
+func (m *Match) GetResult() string {
+	if m.Score == nil {
+		return ""
+	}
+	if m.Score.HomeGoals > m.Score.AwayGoals {
+		return "home"
+	}
+	if m.Score.AwayGoals > m.Score.HomeGoals {
+		return "away"
+	}
+	return "draw"
 }

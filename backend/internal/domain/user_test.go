@@ -1,92 +1,246 @@
-package domain
+package domain_test
 
 import (
 	"testing"
+	"time"
+
+	"github.com/parkertr/tipping/internal/domain"
 )
 
 func TestNewUser(t *testing.T) {
-	// Test case: Create new user
-	googleID := "google-123"
+	t.Parallel()
+
+	id := "user1"
 	email := "test@example.com"
 	name := "Test User"
-	picture := "https://example.com/pic.jpg"
+	picture := "https://example.com/picture.jpg"
 
-	user := NewUser(googleID, email, name, picture)
+	user := &domain.User{
+		ID:        id,
+		GoogleID:  "google123",
+		Email:     email,
+		Name:      name,
+		Picture:   picture,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		IsActive:  true,
+		Stats: domain.UserStats{
+			TotalPoints:        0,
+			CorrectPredictions: 0,
+			TotalPredictions:   0,
+			CurrentRank:        0,
+		},
+	}
 
-	if user.GoogleID != googleID {
-		t.Errorf("expected GoogleID %v, got %v", googleID, user.GoogleID)
+	if user.ID != id {
+		t.Errorf("Expected ID %s, got %s", id, user.ID)
 	}
 	if user.Email != email {
-		t.Errorf("expected Email %v, got %v", email, user.Email)
+		t.Errorf("Expected Email %s, got %s", email, user.Email)
 	}
 	if user.Name != name {
-		t.Errorf("expected Name %v, got %v", name, user.Name)
+		t.Errorf("Expected Name %s, got %s", name, user.Name)
 	}
 	if user.Picture != picture {
-		t.Errorf("expected Picture %v, got %v", picture, user.Picture)
+		t.Errorf("Expected Picture %s, got %s", picture, user.Picture)
 	}
 	if user.CreatedAt.IsZero() {
 		t.Errorf("expected CreatedAt to be set")
 	}
-	if user.Stats.TotalPoints != 0 {
-		t.Errorf("expected TotalPoints 0, got %v", user.Stats.TotalPoints)
+	if user.UpdatedAt.IsZero() {
+		t.Errorf("expected UpdatedAt to be set")
 	}
-	if user.Stats.CorrectPredictions != 0 {
-		t.Errorf("expected CorrectPredictions 0, got %v", user.Stats.CorrectPredictions)
+	if user.IsActive != true {
+		t.Errorf("expected IsActive to be true")
 	}
-	if user.Stats.TotalPredictions != 0 {
-		t.Errorf("expected TotalPredictions 0, got %v", user.Stats.TotalPredictions)
+}
+
+func TestUpdateProfile(t *testing.T) {
+	t.Parallel()
+
+	user := &domain.User{
+		ID:        "user1",
+		GoogleID:  "google123",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Picture:   "https://example.com/picture.jpg",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		IsActive:  true,
+		Stats: domain.UserStats{
+			TotalPoints:        0,
+			CorrectPredictions: 0,
+			TotalPredictions:   0,
+			CurrentRank:        0,
+		},
 	}
-	if user.Stats.CurrentRank != 0 {
-		t.Errorf("expected CurrentRank 0, got %v", user.Stats.CurrentRank)
+	newName := "Updated Name"
+	newPicture := "https://example.com/new-picture.jpg"
+
+	user.UpdateProfile(newName, newPicture)
+
+	if user.Name != newName {
+		t.Errorf("Expected Name %s, got %s", newName, user.Name)
+	}
+	if user.Picture != newPicture {
+		t.Errorf("Expected Picture %s, got %s", newPicture, user.Picture)
+	}
+	if user.UpdatedAt.IsZero() {
+		t.Errorf("expected UpdatedAt to be set")
+	}
+}
+
+func TestDeactivate(t *testing.T) {
+	t.Parallel()
+
+	user := &domain.User{
+		ID:        "user1",
+		GoogleID:  "google123",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Picture:   "https://example.com/picture.jpg",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		IsActive:  true,
+		Stats: domain.UserStats{
+			TotalPoints:        0,
+			CorrectPredictions: 0,
+			TotalPredictions:   0,
+			CurrentRank:        0,
+		},
+	}
+	user.Deactivate()
+
+	if user.IsActive != false {
+		t.Errorf("expected IsActive to be false")
+	}
+	if user.UpdatedAt.IsZero() {
+		t.Errorf("expected UpdatedAt to be set")
+	}
+}
+
+func TestUserStats(t *testing.T) {
+	t.Parallel()
+
+	stats := domain.UserStats{
+		TotalPoints:        9,
+		CorrectPredictions: 5,
+		TotalPredictions:   10,
+		CurrentRank:        1,
+	}
+
+	if stats.TotalPoints != 9 {
+		t.Errorf("Expected TotalPoints %d, got %d", 9, stats.TotalPoints)
+	}
+	if stats.CorrectPredictions != 5 {
+		t.Errorf("Expected CorrectPredictions %d, got %d", 5, stats.CorrectPredictions)
+	}
+	if stats.TotalPredictions != 10 {
+		t.Errorf("Expected TotalPredictions %d, got %d", 10, stats.TotalPredictions)
+	}
+	if stats.CurrentRank != 1 {
+		t.Errorf("Expected CurrentRank %d, got %d", 1, stats.CurrentRank)
 	}
 }
 
 func TestUpdateStats(t *testing.T) {
-	user := NewUser("google-123", "test@example.com", "Test User", "https://example.com/pic.jpg")
+	t.Parallel()
+	user := &domain.User{
+		ID:        "user1",
+		GoogleID:  "google123",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Picture:   "https://example.com/picture.jpg",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		IsActive:  true,
+		Stats: domain.UserStats{
+			TotalPoints:        0,
+			CorrectPredictions: 0,
+			TotalPredictions:   0,
+			CurrentRank:        0,
+		},
+	}
 
 	// Test case 1: Correct prediction
 	user.UpdateStats(3, true)
 	if user.Stats.TotalPoints != 3 {
-		t.Errorf("expected TotalPoints 3, got %v", user.Stats.TotalPoints)
+		t.Errorf("Expected TotalPoints 3, got %d", user.Stats.TotalPoints)
 	}
 	if user.Stats.CorrectPredictions != 1 {
-		t.Errorf("expected CorrectPredictions 1, got %v", user.Stats.CorrectPredictions)
+		t.Errorf("Expected CorrectPredictions 1, got %d", user.Stats.CorrectPredictions)
 	}
 	if user.Stats.TotalPredictions != 1 {
-		t.Errorf("expected TotalPredictions 1, got %v", user.Stats.TotalPredictions)
+		t.Errorf("Expected TotalPredictions 1, got %d", user.Stats.TotalPredictions)
 	}
 
-	// Test case 2: Incorrect prediction
+	// Test case 2: Wrong prediction
 	user.UpdateStats(0, false)
 	if user.Stats.TotalPoints != 3 {
-		t.Errorf("expected TotalPoints 3, got %v", user.Stats.TotalPoints)
+		t.Errorf("Expected TotalPoints 3, got %d", user.Stats.TotalPoints)
 	}
 	if user.Stats.CorrectPredictions != 1 {
-		t.Errorf("expected CorrectPredictions 1, got %v", user.Stats.CorrectPredictions)
+		t.Errorf("Expected CorrectPredictions 1, got %d", user.Stats.CorrectPredictions)
 	}
 	if user.Stats.TotalPredictions != 2 {
-		t.Errorf("expected TotalPredictions 2, got %v", user.Stats.TotalPredictions)
+		t.Errorf("Expected TotalPredictions 2, got %d", user.Stats.TotalPredictions)
 	}
 }
 
 func TestGetSuccessRate(t *testing.T) {
-	user := NewUser("google-123", "test@example.com", "Test User", "https://example.com/pic.jpg")
+	t.Parallel()
+	user := &domain.User{
+		ID:        "user1",
+		GoogleID:  "google123",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Picture:   "https://example.com/picture.jpg",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		IsActive:  true,
+		Stats: domain.UserStats{
+			TotalPoints:        0,
+			CorrectPredictions: 0,
+			TotalPredictions:   0,
+			CurrentRank:        0,
+		},
+	}
 
 	// Test case 1: No predictions
-	if user.GetSuccessRate() != float64(0) {
-		t.Errorf("expected success rate 0, got %v", user.GetSuccessRate())
+	rate := user.GetSuccessRate()
+	if rate != 0 {
+		t.Errorf("Expected success rate 0, got %f", rate)
 	}
 
-	// Test case 2: One correct prediction
+	// Test case 2: 50% success rate
 	user.UpdateStats(3, true)
-	if user.GetSuccessRate() != float64(100) {
-		t.Errorf("expected success rate 100, got %v", user.GetSuccessRate())
+	user.UpdateStats(0, false)
+	rate = user.GetSuccessRate()
+	if rate != 50 {
+		t.Errorf("Expected success rate 50, got %f", rate)
 	}
 
-	// Test case 3: One correct, one incorrect prediction
-	user.UpdateStats(0, false)
-	if user.GetSuccessRate() != float64(50) {
-		t.Errorf("expected success rate 50, got %v", user.GetSuccessRate())
+	// Test case 3: 100% success rate
+	user = &domain.User{
+		ID:        "user1",
+		GoogleID:  "google123",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Picture:   "https://example.com/picture.jpg",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		IsActive:  true,
+		Stats: domain.UserStats{
+			TotalPoints:        0,
+			CorrectPredictions: 0,
+			TotalPredictions:   0,
+			CurrentRank:        0,
+		},
+	}
+	user.UpdateStats(3, true)
+	user.UpdateStats(1, true)
+	rate = user.GetSuccessRate()
+	if rate != 100 {
+		t.Errorf("Expected success rate 100, got %f", rate)
 	}
 }
