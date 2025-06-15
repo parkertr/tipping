@@ -203,17 +203,17 @@ func TestGetEvents(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		if matchCreated.ID != resultData["ID"] {
-			t.Errorf("expected ID %v, got %v", matchCreated.ID, resultData["ID"])
+		if matchCreated.ID != resultData["id"] {
+			t.Errorf("expected ID %v, got %v", matchCreated.ID, resultData["id"])
 		}
-		if matchCreated.HomeTeam != resultData["HomeTeam"] {
-			t.Errorf("expected HomeTeam %v, got %v", matchCreated.HomeTeam, resultData["HomeTeam"])
+		if matchCreated.HomeTeam != resultData["homeTeam"] {
+			t.Errorf("expected HomeTeam %v, got %v", matchCreated.HomeTeam, resultData["homeTeam"])
 		}
-		if matchCreated.AwayTeam != resultData["AwayTeam"] {
-			t.Errorf("expected AwayTeam %v, got %v", matchCreated.AwayTeam, resultData["AwayTeam"])
+		if matchCreated.AwayTeam != resultData["awayTeam"] {
+			t.Errorf("expected AwayTeam %v, got %v", matchCreated.AwayTeam, resultData["awayTeam"])
 		}
-		if matchCreated.Competition != resultData["Competition"] {
-			t.Errorf("expected Competition %v, got %v", matchCreated.Competition, resultData["Competition"])
+		if matchCreated.Competition != resultData["competition"] {
+			t.Errorf("expected Competition %v, got %v", matchCreated.Competition, resultData["competition"])
 		}
 	})
 
@@ -292,20 +292,20 @@ func TestGetEvents(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		if predictionMade.ID != resultData["ID"] {
-			t.Errorf("expected ID %v, got %v", predictionMade.ID, resultData["ID"])
+		if predictionMade.ID != resultData["id"] {
+			t.Errorf("expected ID %v, got %v", predictionMade.ID, resultData["id"])
 		}
-		if predictionMade.UserID != resultData["UserID"] {
-			t.Errorf("expected UserID %v, got %v", predictionMade.UserID, resultData["UserID"])
+		if predictionMade.UserID != resultData["userId"] {
+			t.Errorf("expected UserID %v, got %v", predictionMade.UserID, resultData["userId"])
 		}
-		if predictionMade.MatchID != resultData["MatchID"] {
-			t.Errorf("expected MatchID %v, got %v", predictionMade.MatchID, resultData["MatchID"])
+		if predictionMade.MatchID != resultData["matchId"] {
+			t.Errorf("expected MatchID %v, got %v", predictionMade.MatchID, resultData["matchId"])
 		}
-		if float64(predictionMade.HomeGoals) != resultData["HomeGoals"] {
-			t.Errorf("expected HomeGoals %v, got %v", predictionMade.HomeGoals, resultData["HomeGoals"])
+		if predictionMade.HomeGoals != int(resultData["homeGoals"].(float64)) {
+			t.Errorf("expected HomeGoals %v, got %v", predictionMade.HomeGoals, resultData["homeGoals"])
 		}
-		if float64(predictionMade.AwayGoals) != resultData["AwayGoals"] {
-			t.Errorf("expected AwayGoals %v, got %v", predictionMade.AwayGoals, resultData["AwayGoals"])
+		if predictionMade.AwayGoals != int(resultData["awayGoals"].(float64)) {
+			t.Errorf("expected AwayGoals %v, got %v", predictionMade.AwayGoals, resultData["awayGoals"])
 		}
 	})
 }

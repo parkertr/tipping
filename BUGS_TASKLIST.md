@@ -33,19 +33,14 @@
 
 ## 3. internal/infrastructure/eventstore
 **Test:** `TestGetEvents`
-- **Errors:**
-  - `TestGetEvents/Get_match_events`: Multiple field mismatches in event data:
-    - Expected ID match123, got <nil>
-    - Expected HomeTeam Team A, got <nil>
-    - Expected AwayTeam Team B, got <nil>
-    - Expected Competition Premier League, got <nil>
-  - `TestGetEvents/Get_prediction_events`: Multiple field mismatches in event data:
-    - Expected ID pred123, got <nil>
-    - Expected UserID user123, got <nil>
-    - Expected MatchID match123, got <nil>
-    - Expected HomeGoals 2, got <nil>
-    - Expected AwayGoals 1, got <nil>
-- **Task:**
-  - [ ] In `eventstore_test.go`, review the event data handling in `TestGetEvents` to ensure proper event data is being saved and retrieved.
-  - [ ] Check if the event data is being properly serialized/deserialized in the event store implementation.
-  - [ ] Verify that the test data setup matches the expected event structure.
+- **Status:** ✅ FIXED
+- **Fix:** Updated JSON field names in test assertions to match struct tags in events package:
+  - Changed "ID" to "id"
+  - Changed "HomeTeam" to "homeTeam"
+  - Changed "AwayTeam" to "awayTeam"
+  - Changed "Competition" to "competition"
+  - Changed "UserID" to "userId"
+  - Changed "MatchID" to "matchId"
+  - Changed "HomeGoals" to "homeGoals"
+  - Changed "AwayGoals" to "awayGoals"
+  - Fixed numeric type conversion for goals fields
