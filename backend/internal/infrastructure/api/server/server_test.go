@@ -49,8 +49,8 @@ func TestServerRoutes(t *testing.T) {
 		path   string
 		code   int
 	}{
-		{"GET", "/api/auth/google", http.StatusOK},
-		{"GET", "/api/auth/google/callback", http.StatusOK},
+		{"GET", "/api/auth/google", http.StatusTemporaryRedirect},
+		{"GET", "/api/auth/google/callback", http.StatusBadRequest},
 		{"POST", "/api/auth/refresh", http.StatusUnauthorized},
 		{"GET", "/api/auth/me", http.StatusUnauthorized},
 		{"PUT", "/api/auth/me", http.StatusUnauthorized},

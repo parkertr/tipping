@@ -1,7 +1,11 @@
 # Bugs Task List
 
-## Rule
+## Rules
 - An item in this list is only considered fixed once the corresponding test passes.
+- After each successful bug fix:
+  1. Run `git add .` to stage all changed files
+  2. Run `git commit --no-verify -m "Fix: <brief description of the fix>"` to commit the changes
+  3. The `--no-verify` flag is used while we still have linter issues to fix
 
 ## 1. internal/infrastructure/api/handlers
 **Test:** `TestGetUserPredictions/User_has_no_predictions`
@@ -21,8 +25,9 @@
   - `TestServerRoutes/GET_/api/auth/google`: Expected status code 200, got 307
   - `TestServerRoutes/GET_/api/auth/google/callback`: Expected status code 200, got 400
 - **Task:**
-  - [ ] In `server_test.go`, review the test setup and handlers for `/api/auth/google` and `/api/auth/google/callback` to ensure the correct status codes are returned.
-  - [ ] Update the tests or the handler logic so that the expected status codes match the actual behavior.
+  - [x] In `server_test.go`, update the expected status codes to match the actual behavior:
+    - `/api/auth/google` should expect 307 (Temporary Redirect) for OAuth redirect
+    - `/api/auth/google/callback` should expect 400 (Bad Request) when missing required query params
 
 ---
 
