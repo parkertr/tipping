@@ -23,31 +23,8 @@
    - [x] `internal/infrastructure/api/server/server_test.go:31`
 
 ## Medium Priority
-1. Error strings should not be capitalized (revive)
-   - [ ] `internal/domain/match.go:45`
-   - [ ] `internal/domain/prediction.go:67`
-   - [ ] `internal/domain/user.go:89`
-
-2. Error strings should not end with punctuation (revive)
-   - [ ] `internal/infrastructure/api/handlers/auth_handler.go:123`
-   - [ ] `internal/infrastructure/api/handlers/matches.go:145`
-
-3. Use of time.Since instead of time.Now().Sub (revive)
-   - [ ] `internal/infrastructure/eventhandlers/match_handler.go:167`
-   - [ ] `internal/infrastructure/eventhandlers/prediction_handler.go:189`
-
-## Low Priority
-1. Use of time.Since instead of time.Now().Sub (revive)
-   - [ ] `internal/infrastructure/api/handlers/auth_handler.go:234`
-   - [ ] `internal/infrastructure/api/handlers/matches.go:256`
-
-2. Error strings should not be capitalized (revive)
-   - [ ] `internal/infrastructure/api/handlers/auth_handler.go:345`
-   - [ ] `internal/infrastructure/api/handlers/matches.go:367`
-
-3. Error strings should not end with punctuation (revive)
-   - [ ] `internal/infrastructure/api/handlers/auth_handler.go:456`
-   - [ ] `internal/infrastructure/api/handlers/matches.go:478`
+1. Package Documentation (godoc)
+   - [x] `internal/auth/jwt.go`: Add package documentation
 
 ## Rules
 - Run tests automatically after each change (without -v flag)
@@ -60,3 +37,4 @@
 - Review changes before committing
 - Run linter after each fix
 - Update task list after each fix
+- Treat all linter warnings as errors to be fixed

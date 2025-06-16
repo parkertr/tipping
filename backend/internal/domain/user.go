@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/parkertr/tipping/internal/constants"

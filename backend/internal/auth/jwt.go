@@ -1,9 +1,11 @@
+// Package auth provides JWT-based authentication functionality for the tipping application.
+// It includes token generation, validation, and refresh operations using the JWT standard.
 package auth
 
 import (
 	"errors"
-	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
