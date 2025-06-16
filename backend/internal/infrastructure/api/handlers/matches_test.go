@@ -40,7 +40,7 @@ func TestCreateMatch(t *testing.T) {
 
 		// Create request
 		body, _ := json.Marshal(match)
-		req := httptest.NewRequest("POST", "/api/matches", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/matches", bytes.NewBuffer(body))
 		rr := httptest.NewRecorder()
 
 		// Set up mock expectation - use mock.MatchedBy for dynamic fields
@@ -79,7 +79,7 @@ func TestCreateMatch(t *testing.T) {
 	// Test case 2: Invalid JSON
 	t.Run("Invalid JSON", func(t *testing.T) {
 		t.Parallel()
-		req := httptest.NewRequest("POST", "/api/matches", bytes.NewBufferString("invalid json"))
+		req := httptest.NewRequest(http.MethodPost, "/api/matches", bytes.NewBufferString("invalid json"))
 		rr := httptest.NewRecorder()
 
 		handler.CreateMatch(rr, req)
@@ -103,7 +103,7 @@ func TestGetMatch(t *testing.T) {
 		matchID := "123"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("GET", "/api/matches/"+matchID, nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/matches/"+matchID, nil)
 		rr := httptest.NewRecorder()
 
 		// Add route parameters to request context
@@ -138,7 +138,7 @@ func TestGetMatch(t *testing.T) {
 		matchID := "456"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("GET", "/api/matches/"+matchID, nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/matches/"+matchID, nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"id": matchID})
 
@@ -169,7 +169,7 @@ func TestListMatches(t *testing.T) {
 	t.Run("List all matches from repository", func(t *testing.T) {
 		t.Parallel()
 		// Create request
-		req := httptest.NewRequest("GET", "/api/matches", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/matches", nil)
 		rr := httptest.NewRecorder()
 
 		// Create mock matches
@@ -218,7 +218,7 @@ func TestUpdateMatchScore(t *testing.T) {
 		matchID := "123"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("PUT", "/api/matches/"+matchID+"/score", bytes.NewBufferString(`{"homeGoals": 2, "awayGoals": 1}`))
+		req := httptest.NewRequest(http.MethodPut, "/api/matches/"+matchID+"/score", bytes.NewBufferString(`{"homeGoals": 2, "awayGoals": 1}`))
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"id": matchID})
 

@@ -35,7 +35,7 @@ func TestCreatePrediction(t *testing.T) {
 
 		// Create request
 		body, _ := json.Marshal(prediction)
-		req := httptest.NewRequest("POST", "/api/predictions", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(body))
 		rr := httptest.NewRecorder()
 
 		// Create mock match event
@@ -92,7 +92,7 @@ func TestCreatePrediction(t *testing.T) {
 		t.Parallel()
 		mockStore := new(mocks.MockEventStore)
 		handler := handlers.NewPredictionHandler(mockStore)
-		req := httptest.NewRequest("POST", "/api/predictions", bytes.NewBufferString("invalid json"))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBufferString("invalid json"))
 		rr := httptest.NewRecorder()
 
 		handler.CreatePrediction(rr, req)
@@ -119,7 +119,7 @@ func TestCreatePrediction(t *testing.T) {
 
 		// Create request
 		body, _ := json.Marshal(prediction)
-		req := httptest.NewRequest("POST", "/api/predictions", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(body))
 		rr := httptest.NewRecorder()
 
 		// Set up mock expectation for GetEvents (match not found)
@@ -152,7 +152,7 @@ func TestCreatePrediction(t *testing.T) {
 
 		// Create request
 		body, _ := json.Marshal(prediction)
-		req := httptest.NewRequest("POST", "/api/predictions", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(body))
 		rr := httptest.NewRecorder()
 
 		// Create mock match events
