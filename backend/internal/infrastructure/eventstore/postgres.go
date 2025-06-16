@@ -111,6 +111,10 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		result = append(result, &event)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating events: %w", err)
+	}
+
 	return result, nil
 }
 
@@ -172,6 +176,10 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 		result = append(result, &event)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating events: %w", err)
+	}
+
 	return result, nil
 }
 
@@ -231,6 +239,10 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 		}
 
 		result = append(result, &event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating events: %w", err)
 	}
 
 	return result, nil
