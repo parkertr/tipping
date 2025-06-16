@@ -27,7 +27,7 @@ func NewPostgresEventStore(db *sql.DB) (*PostgresEventStore, error) {
 }
 
 // SaveEvent persists an event to PostgreSQL
-func (s *PostgresEventStore) SaveEvent(ctx context.Context, event *events.Event) error {
+func (store *PostgresEventStore) SaveEvent(ctx context.Context, event *events.Event) error {
 	data, err := json.Marshal(event.Data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event data: %w", err)
@@ -38,7 +38,7 @@ func (s *PostgresEventStore) SaveEvent(ctx context.Context, event *events.Event)
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	_, err = s.db.ExecContext(ctx, query,
+	_, err = store.db.ExecContext(ctx, query,
 		event.ID,
 		event.Type,
 		data,
@@ -54,7 +54,7 @@ func (s *PostgresEventStore) SaveEvent(ctx context.Context, event *events.Event)
 }
 
 // GetEvents retrieves all events for a given aggregate ID
-func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) ([]*events.Event, error) {
+func (store *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) ([]*events.Event, error) {
 	query := `
 		SELECT id, type, data, timestamp, version
 		FROM events
@@ -62,9 +62,9 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		ORDER BY timestamp ASC
 	`
 
-	rows, err := s.db.QueryContext(ctx, query, aggregateID)
+	rows, err := store.db.QueryContext(ctx, query, aggregateID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query events: %w", err)
+		return nil, fmt.Errorf("failed to query events for aggregateID %s: %w", aggregateID, err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -77,7 +77,7 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		var event events.Event
 		var data []byte
 		if err := rows.Scan(&event.ID, &event.Type, &data, &event.Timestamp, &event.Version); err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
+			return nil, fmt.Errorf("failed to scan event for aggregateID %s: %w", aggregateID, err)
 		}
 
 		// Unmarshal the event data based on the event type
@@ -85,25 +85,25 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		case "MatchCreated":
 			var matchCreated events.MatchCreated
 			if err := json.Unmarshal(data, &matchCreated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchCreated: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchCreated for event ID %s: %w", event.ID, err)
 			}
 			event.Data = matchCreated
 		case "MatchScoreUpdated":
 			var scoreUpdated events.MatchScoreUpdated
 			if err := json.Unmarshal(data, &scoreUpdated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated for event ID %s: %w", event.ID, err)
 			}
 			event.Data = scoreUpdated
 		case "MatchStatusChanged":
 			var statusChanged events.MatchStatusChanged
 			if err := json.Unmarshal(data, &statusChanged); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged for event ID %s: %w", event.ID, err)
 			}
 			event.Data = statusChanged
 		case "PredictionMade":
 			var predictionMade events.PredictionMade
 			if err := json.Unmarshal(data, &predictionMade); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal PredictionMade: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal PredictionMade for event ID %s: %w", event.ID, err)
 			}
 			event.Data = predictionMade
 		}
@@ -112,14 +112,14 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating events: %w", err)
+		return nil, fmt.Errorf("error iterating events for aggregateID %s: %w", aggregateID, err)
 	}
 
 	return result, nil
 }
 
 // GetEventsByType retrieves all events of a specific type
-func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType string) ([]*events.Event, error) {
+func (store *PostgresEventStore) GetEventsByType(ctx context.Context, eventType string) ([]*events.Event, error) {
 	query := `
 		SELECT id, type, data, timestamp, version
 		FROM events
@@ -127,9 +127,9 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 		ORDER BY timestamp ASC
 	`
 
-	rows, err := s.db.QueryContext(ctx, query, eventType)
+	rows, err := store.db.QueryContext(ctx, query, eventType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query events: %w", err)
+		return nil, fmt.Errorf("failed to query events for eventType %s: %w", eventType, err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -142,7 +142,7 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 		var event events.Event
 		var data []byte
 		if err := rows.Scan(&event.ID, &event.Type, &data, &event.Timestamp, &event.Version); err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
+			return nil, fmt.Errorf("failed to scan event for eventType %s: %w", eventType, err)
 		}
 
 		// Unmarshal the event data based on the event type
@@ -150,25 +150,25 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 		case "MatchCreated":
 			var matchCreated events.MatchCreated
 			if err := json.Unmarshal(data, &matchCreated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchCreated: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchCreated for event ID %s: %w", event.ID, err)
 			}
 			event.Data = matchCreated
 		case "MatchScoreUpdated":
 			var scoreUpdated events.MatchScoreUpdated
 			if err := json.Unmarshal(data, &scoreUpdated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated for event ID %s: %w", event.ID, err)
 			}
 			event.Data = scoreUpdated
 		case "MatchStatusChanged":
 			var statusChanged events.MatchStatusChanged
 			if err := json.Unmarshal(data, &statusChanged); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged for event ID %s: %w", event.ID, err)
 			}
 			event.Data = statusChanged
 		case "PredictionMade":
 			var predictionMade events.PredictionMade
 			if err := json.Unmarshal(data, &predictionMade); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal PredictionMade: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal PredictionMade for event ID %s: %w", event.ID, err)
 			}
 			event.Data = predictionMade
 		}
@@ -177,14 +177,14 @@ func (s *PostgresEventStore) GetEventsByType(ctx context.Context, eventType stri
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating events: %w", err)
+		return nil, fmt.Errorf("error iterating events for eventType %s: %w", eventType, err)
 	}
 
 	return result, nil
 }
 
 // GetEventsByTimeRange retrieves events within a time range
-func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, end time.Time) ([]*events.Event, error) {
+func (store *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, end time.Time) ([]*events.Event, error) {
 	query := `
 		SELECT id, type, data, timestamp, version
 		FROM events
@@ -192,9 +192,9 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 		ORDER BY timestamp ASC
 	`
 
-	rows, err := s.db.QueryContext(ctx, query, start, end)
+	rows, err := store.db.QueryContext(ctx, query, start, end)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query events: %w", err)
+		return nil, fmt.Errorf("failed to query events for time range %s to %s: %w", start.Format(time.RFC3339), end.Format(time.RFC3339), err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -207,7 +207,7 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 		var event events.Event
 		var data []byte
 		if err := rows.Scan(&event.ID, &event.Type, &data, &event.Timestamp, &event.Version); err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
+			return nil, fmt.Errorf("failed to scan event for time range %s to %s: %w", start.Format(time.RFC3339), end.Format(time.RFC3339), err)
 		}
 
 		// Unmarshal the event data based on the event type
@@ -215,25 +215,25 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 		case "MatchCreated":
 			var matchCreated events.MatchCreated
 			if err := json.Unmarshal(data, &matchCreated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchCreated: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchCreated for event ID %s: %w", event.ID, err)
 			}
 			event.Data = matchCreated
 		case "MatchScoreUpdated":
 			var scoreUpdated events.MatchScoreUpdated
 			if err := json.Unmarshal(data, &scoreUpdated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated for event ID %s: %w", event.ID, err)
 			}
 			event.Data = scoreUpdated
 		case "MatchStatusChanged":
 			var statusChanged events.MatchStatusChanged
 			if err := json.Unmarshal(data, &statusChanged); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged for event ID %s: %w", event.ID, err)
 			}
 			event.Data = statusChanged
 		case "PredictionMade":
 			var predictionMade events.PredictionMade
 			if err := json.Unmarshal(data, &predictionMade); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal PredictionMade: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal PredictionMade for event ID %s: %w", event.ID, err)
 			}
 			event.Data = predictionMade
 		}
@@ -242,7 +242,7 @@ func (s *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, en
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating events: %w", err)
+		return nil, fmt.Errorf("error iterating events for time range %s to %s: %w", start.Format(time.RFC3339), end.Format(time.RFC3339), err)
 	}
 
 	return result, nil
