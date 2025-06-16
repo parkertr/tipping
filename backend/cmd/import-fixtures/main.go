@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/parkertr/tipping/internal/infrastructure/eventhandlers"
 	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
 	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"

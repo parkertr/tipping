@@ -5,51 +5,41 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
 )
+
+// Add mock types for the required interfaces
+
+type mockUserRepo struct{ repository.UserRepository }
+type mockMatchRepo struct{ repository.MatchRepository }
+type mockPredictionRepo struct {
+	repository.PredictionRepository
+}
+type mockEventStore struct{ handlers.EventStore }
 
 func TestNewServer(t *testing.T) {
 	t.Parallel()
-	// Create mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
+	userRepo := &mockUserRepo{}
+	matchRepo := &mockMatchRepo{}
+	predictionRepo := &mockPredictionRepo{}
+	eventStore := &mockEventStore{}
 
-	// Set up expectations for database ping
-	mock.ExpectPing()
-
-	// Test server creation
-	srv, err := server.NewServer(db)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
+	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 	if srv == nil {
 		t.Fatal("Expected server to be created")
-	}
-
-	// Verify that all expectations were met
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Unfulfilled expectations: %v", err)
 	}
 }
 
 func TestServerRoutes(t *testing.T) {
 	t.Parallel()
-	// Create mock database
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
+	userRepo := &mockUserRepo{}
+	matchRepo := &mockMatchRepo{}
+	predictionRepo := &mockPredictionRepo{}
+	eventStore := &mockEventStore{}
 
-	// Create server
-	srv, err := server.NewServer(db)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
+	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 
 	// Test routes
 	testCases := []struct {
@@ -81,7 +71,7 @@ func TestServerRoutes(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			rr := httptest.NewRecorder()
-			srv.ServeHTTP(rr, req)
+			srv.Handler().ServeHTTP(rr, req)
 			if rr.Code != tc.code {
 				t.Errorf("Expected status code %d, got %d", tc.code, rr.Code)
 			}
@@ -89,41 +79,14 @@ func TestServerRoutes(t *testing.T) {
 	}
 }
 
-func TestServerClose(t *testing.T) {
-	t.Parallel()
-	// Create mock database
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
-
-	// Create server
-	srv, err := server.NewServer(db)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	// Test close
-	if err := srv.Close(); err != nil {
-		t.Errorf("Expected no error on close, got %v", err)
-	}
-}
-
 func TestMiddleware(t *testing.T) {
 	t.Parallel()
-	// Create mock database
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
+	userRepo := &mockUserRepo{}
+	matchRepo := &mockMatchRepo{}
+	predictionRepo := &mockPredictionRepo{}
+	eventStore := &mockEventStore{}
 
-	// Create server
-	srv, err := server.NewServer(db)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
+	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 
 	// Test cases
 	testCases := []struct {
@@ -161,7 +124,7 @@ func TestMiddleware(t *testing.T) {
 				req.Header.Set("Authorization", tc.authHeader)
 			}
 			rr := httptest.NewRecorder()
-			srv.ServeHTTP(rr, req)
+			srv.Handler().ServeHTTP(rr, req)
 			if rr.Code != tc.expectedStatus {
 				t.Errorf("Expected status code %d, got %d", tc.expectedStatus, rr.Code)
 			}

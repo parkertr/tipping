@@ -282,3 +282,11 @@ func (h *MatchHandler) ListUpcomingMatches(w http.ResponseWriter, r *http.Reques
 		fmt.Printf("error encoding upcoming matches: %v\n", err)
 	}
 }
+
+// RegisterRoutes registers the match handler routes
+func (h *MatchHandler) RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/matches", h.CreateMatch).Methods("POST")
+	r.HandleFunc("/matches", h.ListMatches).Methods("GET")
+	r.HandleFunc("/matches/{id}", h.GetMatch).Methods("GET")
+	r.HandleFunc("/matches/{id}/score", h.UpdateMatchScore).Methods("PUT")
+}

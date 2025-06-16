@@ -2,28 +2,19 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 
-	"github.com/parkertr/tipping/internal/auth"
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/auth"
 )
 
-// contextKey is the key used to store the user in the request context
-type contextKey string
+// UserContextKey is the key used to store the user in the context
+var UserContextKey = struct{}{}
 
-const (
-	// userContextKey is the key used to store the user in the request context
-	userContextKey contextKey = "user"
-)
-
-// AuthMiddleware creates a middleware that validates JWT tokens
-func AuthMiddleware(
-	tokenManager *auth.TokenManager,
-	userRepo repository.UserRepository,
-) func(http.Handler) http.Handler {
+// AuthMiddleware is a middleware that checks for a valid JWT token
+func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get the Authorization header
@@ -43,10 +34,6 @@ func AuthMiddleware(
 			// Validate the token
 			claims, err := tokenManager.ValidateToken(parts[1])
 			if err != nil {
-				if errors.Is(err, auth.ErrExpiredToken) {
-					http.Error(w, "Token expired", http.StatusUnauthorized)
-					return
-				}
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
@@ -62,8 +49,8 @@ func AuthMiddleware(
 				return
 			}
 
-			// Add the user to the request context
-			ctx := context.WithValue(r.Context(), userContextKey, user)
+			// Add the user to the context
+			ctx := context.WithValue(r.Context(), UserContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -71,7 +58,7 @@ func AuthMiddleware(
 
 // GetUserFromContext retrieves the user from the request context
 func GetUserFromContext(ctx context.Context) *domain.User {
-	if user, ok := ctx.Value(userContextKey).(*domain.User); ok {
+	if user, ok := ctx.Value(UserContextKey).(*domain.User); ok {
 		return user
 	}
 	return nil

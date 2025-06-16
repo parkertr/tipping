@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -10,44 +9,39 @@ import (
 	"os/signal"
 	"syscall"
 
-	_ "github.com/lib/pq"
 	"github.com/parkertr/tipping/internal/constants"
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/infrastructure/database"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"
 )
 
 func main() {
-	// Get database connection string from environment variable or use default
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/footy_tipping?sslmode=disable"
-	}
-
 	// Connect to the database
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.NewPostgresDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("error closing db: %v", err)
-		}
-	}()
+	defer database.CloseDB(db)
+
+	// Create repositories
+	userRepo := postgres.NewUserRepository(db)
+	matchRepo := postgres.NewMatchRepository(db)
+	predictionRepo := postgres.NewPredictionRepository(db)
+
+	// Create event store
+	eventStore, err := eventstore.NewPostgresEventStore(db)
+	if err != nil {
+		log.Fatalf("Failed to create event store: %v", err)
+	}
 
 	// Create server
-	srv, err := server.NewServer(db)
-	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
-	}
-	defer func() {
-		if err := srv.Close(); err != nil {
-			log.Printf("error closing server: %v", err)
-		}
-	}()
+	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 
 	// Create HTTP server
 	httpServer := &http.Server{
 		Addr:              ":8080",
-		Handler:           srv,
+		Handler:           srv.Handler(),
 		ReadTimeout:       constants.DefaultReadTimeout,
 		WriteTimeout:      constants.DefaultWriteTimeout,
 		IdleTimeout:       constants.DefaultIdleTimeout,

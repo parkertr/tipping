@@ -1,58 +1,61 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
-	"os"
+	"time"
 
-	"github.com/parkertr/tipping/internal/auth"
+	"github.com/gorilla/mux"
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/auth"
 	"github.com/parkertr/tipping/pkg/events"
 	"github.com/parkertr/tipping/pkg/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
-// AuthHandler handles authentication-related HTTP requests
+// AuthHandler handles authentication-related requests
 type AuthHandler struct {
-	config       *oauth2.Config
-	tokenManager *auth.TokenManager
 	userRepo     repository.UserRepository
+	tokenManager *auth.TokenManager
+	oauthConfig  *oauth2.Config
 	eventStore   EventStore
 }
 
-// NewAuthHandler creates a new AuthHandler
-func NewAuthHandler(tokenManager *auth.TokenManager, userRepo repository.UserRepository, eventStore EventStore) *AuthHandler {
-	config := &oauth2.Config{
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
-	}
-
+// NewAuthHandler creates a new auth handler
+func NewAuthHandler(userRepo repository.UserRepository, tokenManager *auth.TokenManager, eventStore EventStore) *AuthHandler {
 	return &AuthHandler{
-		config:       config,
-		tokenManager: tokenManager,
 		userRepo:     userRepo,
-		eventStore:   eventStore,
+		tokenManager: tokenManager,
+		oauthConfig: &oauth2.Config{
+			ClientID:     utils.GetEnvOrDefault("GOOGLE_CLIENT_ID", ""),
+			ClientSecret: utils.GetEnvOrDefault("GOOGLE_CLIENT_SECRET", ""),
+			RedirectURL:  utils.GetEnvOrDefault("GOOGLE_REDIRECT_URL", "http://localhost:8080/auth/google/callback"),
+			Scopes: []string{
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			},
+			Endpoint: google.Endpoint,
+		},
+		eventStore: eventStore,
 	}
 }
 
-// GoogleLogin initiates the Google OAuth login flow
+// RegisterRoutes registers the auth handler routes
+func (h *AuthHandler) RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/auth/google", h.GoogleLogin).Methods("GET")
+	r.HandleFunc("/auth/google/callback", h.GoogleCallback).Methods("GET")
+	r.HandleFunc("/auth/refresh", h.RefreshToken).Methods("POST")
+}
+
+// GoogleLogin initiates the Google OAuth flow
 func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
-	url := h.config.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	url := h.oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
-// GoogleCallback handles the OAuth callback from Google
+// GoogleCallback handles the Google OAuth callback
 func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
@@ -60,142 +63,118 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userInfo, err := h.getGoogleUserInfo(r.Context(), code)
+	token, err := h.oauthConfig.Exchange(r.Context(), code)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
 		return
 	}
 
-	user, err := h.getOrCreateUser(r.Context(), userInfo)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	jwtToken, err := h.tokenManager.GenerateToken(user.ID)
-	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{
-		"token": jwtToken,
-	}); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
-}
-
-// getGoogleUserInfo retrieves user information from Google
-func (h *AuthHandler) getGoogleUserInfo(ctx context.Context, code string) (*struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verifiedEmail"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-}, error) {
-	token, err := h.config.Exchange(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("failed to exchange token: %w", err)
-	}
-
-	client := h.config.Client(ctx, token)
+	client := h.oauthConfig.Client(r.Context(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user info: %w", err)
+		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+		return
 	}
-	defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			log.Printf("Error closing response body: %v", cerr)
-		}
-	}()
+	defer resp.Body.Close()
 
 	var userInfo struct {
 		ID            string `json:"id"`
 		Email         string `json:"email"`
-		VerifiedEmail bool   `json:"verifiedEmail"`
+		VerifiedEmail bool   `json:"verified_email"`
 		Name          string `json:"name"`
 		Picture       string `json:"picture"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return nil, fmt.Errorf("failed to decode user info: %w", err)
+		http.Error(w, "Failed to decode user info", http.StatusInternalServerError)
+		return
 	}
 
-	return &userInfo, nil
-}
-
-// getOrCreateUser retrieves an existing user or creates a new one
-func (h *AuthHandler) getOrCreateUser(ctx context.Context, userInfo *struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verifiedEmail"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-}) (*domain.User, error) {
-	existingUser, err := h.userRepo.GetByGoogleID(ctx, userInfo.ID)
+	// Get or create user
+	user, err := h.userRepo.GetByGoogleID(r.Context(), userInfo.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check user existence: %w", err)
+		http.Error(w, "Failed to get user", http.StatusInternalServerError)
+		return
 	}
 
-	var user *domain.User
-	if existingUser == nil {
-		user = domain.NewUser(userInfo.ID, userInfo.Email, userInfo.Name, userInfo.Picture)
-		user.ID = utils.GenerateID()
+	if user == nil {
+		// Create new user
+		user = &domain.User{
+			GoogleID: userInfo.ID,
+			Email:    userInfo.Email,
+			Name:     userInfo.Name,
+			Picture:  userInfo.Picture,
+		}
+
+		if err := h.userRepo.Create(r.Context(), user); err != nil {
+			http.Error(w, "Failed to create user", http.StatusInternalServerError)
+			return
+		}
 
 		event := events.NewEvent("UserRegistered", events.UserRegistered{
 			ID:        user.ID,
-			GoogleID:  user.GoogleID,
-			Email:     user.Email,
-			Name:      user.Name,
-			Picture:   user.Picture,
-			CreatedAt: user.CreatedAt,
+			GoogleID:  userInfo.ID,
+			Email:     userInfo.Email,
+			Name:      userInfo.Name,
+			Picture:   userInfo.Picture,
+			CreatedAt: time.Now(),
 		})
 
-		if err := h.eventStore.SaveEvent(ctx, event); err != nil {
-			return nil, fmt.Errorf("failed to save user registration event: %w", err)
+		if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
+			http.Error(w, "Failed to save user registration event", http.StatusInternalServerError)
+			return
 		}
 	} else {
-		user = existingUser
 		user.UpdateProfile(userInfo.Name, userInfo.Picture)
 
 		event := events.NewEvent("UserProfileUpdated", events.UserProfileUpdated{
 			UserID:    user.ID,
-			Name:      user.Name,
-			Picture:   user.Picture,
-			UpdatedAt: user.UpdatedAt,
+			Name:      userInfo.Name,
+			Picture:   userInfo.Picture,
+			UpdatedAt: time.Now(),
 		})
 
-		if err := h.eventStore.SaveEvent(ctx, event); err != nil {
-			return nil, fmt.Errorf("failed to save profile update event: %w", err)
+		if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
+			http.Error(w, "Failed to save profile update event", http.StatusInternalServerError)
+			return
 		}
 	}
 
-	return user, nil
-}
-
-// RefreshToken generates a new JWT token
-func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
-	if !ok {
-		http.Error(w, "Invalid user context", http.StatusInternalServerError)
-		return
-	}
-
-	token, err := h.tokenManager.GenerateToken(user.ID)
+	// Generate JWT token
+	tokenString, err := h.tokenManager.GenerateToken(user.ID)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
+	// Return token
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{
-		"token": token,
-	}); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": tokenString,
+	})
+}
+
+// RefreshToken refreshes a JWT token
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	tokenString, err := h.tokenManager.RefreshToken(req.Token)
+	if err != nil {
+		http.Error(w, "Failed to refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": tokenString,
+	})
 }
 
 // GetProfile returns the current user's profile

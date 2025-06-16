@@ -222,6 +222,42 @@ linters:
   settings:
     # See the dedicated "linters.settings" documentation section.
     option: value
+    depguard:
+      rules:
+        main:
+          files: ["$all"]
+          allow:
+            - "github.com/parkertr/tipping/internal/*"
+            - "github.com/parkertr/tipping/pkg/*"
+            - "github.com/gorilla/mux"
+            - "github.com/lib/pq"
+            - "github.com/golang-jwt/jwt/v5"
+            - "golang.org/x/oauth2"
+            - "golang.org/x/oauth2/google"
+            - "github.com/stretchr/testify/mock"
+            - "github.com/DATA-DOG/go-sqlmock"
+            - "errors"
+            - "fmt"
+            - "os"
+            - "time"
+            - "context"
+            - "database/sql"
+            - "net/http"
+            - "encoding/json"
+            - "io"
+            - "log"
+            - "strings"
+            - "sync"
+            - "testing"
+            - "reflect"
+            - "regexp"
+            - "runtime"
+            - "sort"
+            - "strconv"
+            - "text/template"
+            - "time"
+            - "unicode"
+            - "unsafe"
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.
   exclusions:

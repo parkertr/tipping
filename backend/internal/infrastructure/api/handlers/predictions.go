@@ -307,3 +307,11 @@ func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *
 	// No prediction found
 	http.Error(w, "Prediction not found", http.StatusNotFound)
 }
+
+// RegisterRoutes registers the prediction handler routes
+func (h *PredictionHandler) RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/predictions", h.CreatePrediction).Methods("POST")
+	r.HandleFunc("/users/{userId}/predictions", h.GetUserPredictions).Methods("GET")
+	r.HandleFunc("/matches/{matchId}/predictions", h.GetMatchPredictions).Methods("GET")
+	r.HandleFunc("/matches/{matchId}/predictions/{userId}", h.GetUserPredictionForMatch).Methods("GET")
+}

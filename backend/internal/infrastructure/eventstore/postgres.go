@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	// Blank import for PostgreSQL driver
 	_ "github.com/lib/pq"
 	"github.com/parkertr/tipping/pkg/events"
 )

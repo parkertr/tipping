@@ -3,11 +3,11 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/parkertr/tipping/internal/constants"
+	"github.com/parkertr/tipping/pkg/utils"
 )
 
 var (
@@ -29,7 +29,7 @@ type TokenManager struct {
 // NewTokenManager creates a new token manager
 func NewTokenManager() *TokenManager {
 	return &TokenManager{
-		secretKey: []byte(os.Getenv("JWT_SECRET")),
+		secretKey: []byte(utils.GetEnvOrDefault("JWT_SECRET", "your-secret-key")),
 	}
 }
 
@@ -38,7 +38,7 @@ func (m *TokenManager) GenerateToken(userID string) (string, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(constants.DefaultTokenExpiration)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(utils.GetEnvOrDefaultDuration("JWT_EXPIRATION", constants.DefaultTokenExpiration))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "tipping-app",
@@ -60,10 +60,8 @@ func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-
 			return nil, ErrExpiredToken
 		}
-
 		return nil, ErrInvalidToken
 	}
 
