@@ -204,14 +204,11 @@ func (h *PredictionHandler) unmarshalPredictionEvent(event *events.Event) (*doma
 	), nil
 }
 
-// GetUserPredictions retrieves all predictions for a user
-func (h *PredictionHandler) GetUserPredictions(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	userID := vars["userId"]
-
+// getPredictions retrieves predictions based on the given filter
+func (h *PredictionHandler) getPredictions(w http.ResponseWriter, r *http.Request, filter func(*domain.Prediction) bool) {
 	events, err := h.eventStore.GetEventsByType(r.Context(), "PredictionMade")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to retrieve predictions for user %s: %v", userID, err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to retrieve predictions: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -219,47 +216,36 @@ func (h *PredictionHandler) GetUserPredictions(w http.ResponseWriter, r *http.Re
 	for _, event := range events {
 		prediction, err := h.unmarshalPredictionEvent(event)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to process prediction data for user %s: %v", userID, err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to process prediction data: %v", err), http.StatusInternalServerError)
 			return
 		}
-		if prediction.UserID == userID {
+		if filter(prediction) {
 			predictions = append(predictions, prediction)
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(predictions); err != nil {
-		fmt.Printf("error encoding predictions for user %s: %v\n", userID, err)
+		fmt.Printf("error encoding predictions: %v\n", err)
 	}
+}
+
+// GetUserPredictions retrieves all predictions for a user
+func (h *PredictionHandler) GetUserPredictions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["userId"]
+	h.getPredictions(w, r, func(prediction *domain.Prediction) bool {
+		return prediction.UserID == userID
+	})
 }
 
 // GetMatchPredictions retrieves all predictions for a match
 func (h *PredictionHandler) GetMatchPredictions(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	matchID := vars["matchId"]
-
-	events, err := h.eventStore.GetEventsByType(r.Context(), "PredictionMade")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to retrieve predictions for match %s: %v", matchID, err), http.StatusInternalServerError)
-		return
-	}
-
-	predictions := make([]*domain.Prediction, 0)
-	for _, event := range events {
-		prediction, err := h.unmarshalPredictionEvent(event)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to process prediction data for match %s: %v", matchID, err), http.StatusInternalServerError)
-			return
-		}
-		if prediction.MatchID == matchID {
-			predictions = append(predictions, prediction)
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(predictions); err != nil {
-		fmt.Printf("error encoding predictions for match %s: %v\n", matchID, err)
-	}
+	h.getPredictions(w, r, func(prediction *domain.Prediction) bool {
+		return prediction.MatchID == matchID
+	})
 }
 
 // GetUserPredictionForMatch retrieves a specific user's prediction for a specific match
