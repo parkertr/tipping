@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -60,25 +62,23 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
-// GoogleCallback handles the Google OAuth callback
-func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
-	if code == "" {
-		http.Error(w, "Code not found", http.StatusBadRequest)
-		return
-	}
-
-	token, err := h.oauthConfig.Exchange(r.Context(), code)
+// getUserInfoFromGoogle retrieves user info from Google OAuth
+func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}, error) {
+	token, err := h.oauthConfig.Exchange(ctx, code)
 	if err != nil {
-		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}
 
-	client := h.oauthConfig.Client(r.Context(), token)
+	client := h.oauthConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -91,15 +91,23 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		http.Error(w, "Failed to decode user info", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	// Get or create user
-	user, err := h.userRepo.GetByGoogleID(r.Context(), userInfo.ID)
+	return &userInfo, nil
+}
+
+// createOrUpdateUser creates a new user or updates an existing one
+func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}) (*domain.User, error) {
+	user, err := h.userRepo.GetByGoogleID(ctx, userInfo.ID)
 	if err != nil {
-		http.Error(w, "Failed to get user", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	if user == nil {
@@ -111,9 +119,8 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 			Picture:  userInfo.Picture,
 		}
 
-		if err := h.userRepo.Create(r.Context(), user); err != nil {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
-			return
+		if err := h.userRepo.Create(ctx, user); err != nil {
+			return nil, fmt.Errorf("failed to create user: %w", err)
 		}
 
 		event := events.NewEvent("UserRegistered", events.UserRegistered{
@@ -125,9 +132,8 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: time.Now(),
 		})
 
-		if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-			http.Error(w, "Failed to save user registration event", http.StatusInternalServerError)
-			return
+		if err := h.eventStore.SaveEvent(ctx, event); err != nil {
+			return nil, fmt.Errorf("failed to save user registration event: %w", err)
 		}
 	} else {
 		user.UpdateProfile(userInfo.Name, userInfo.Picture)
@@ -139,10 +145,32 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: time.Now(),
 		})
 
-		if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-			http.Error(w, "Failed to save profile update event", http.StatusInternalServerError)
-			return
+		if err := h.eventStore.SaveEvent(ctx, event); err != nil {
+			return nil, fmt.Errorf("failed to save profile update event: %w", err)
 		}
+	}
+
+	return user, nil
+}
+
+// GoogleCallback handles the Google OAuth callback
+func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Code not found", http.StatusBadRequest)
+		return
+	}
+
+	userInfo, err := h.getUserInfoFromGoogle(r.Context(), code)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	user, err := h.createOrUpdateUser(r.Context(), userInfo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// Generate JWT token

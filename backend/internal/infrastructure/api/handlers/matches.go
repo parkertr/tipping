@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -147,35 +148,18 @@ func (h *MatchHandler) UpdateMatchScore(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 }
 
-// GetMatch retrieves a match by ID
-func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	matchID := vars["id"]
-
-	// Try to get from read model first
-	match, err := h.matchRepo.GetByID(r.Context(), matchID)
-	if err == nil {
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(match); err != nil {
-			fmt.Printf("error encoding match: %v\n", err)
-		}
-		return
-	}
-
-	// Fallback to rebuilding from events if not in read model
-	events, err := h.eventStore.GetEvents(r.Context(), matchID)
+// rebuildMatchFromEvents rebuilds a match from its event history
+func (h *MatchHandler) rebuildMatchFromEvents(ctx context.Context, matchID string) (*domain.Match, error) {
+	events, err := h.eventStore.GetEvents(ctx, matchID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve match", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to retrieve events: %w", err)
 	}
 
 	if len(events) == 0 {
-		http.Error(w, "Match not found", http.StatusNotFound)
-		return
+		return nil, repository.ErrNotFound
 	}
 
-	// Rebuild match from events
-	match = &domain.Match{
+	match := &domain.Match{
 		ID:          "",
 		HomeTeam:    "",
 		AwayTeam:    "",
@@ -184,51 +168,86 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 		Status:      domain.MatchStatusScheduled,
 		Score:       &domain.Score{HomeGoals: constants.InitialScore, AwayGoals: constants.InitialScore},
 	}
+
 	for _, event := range events {
-		switch event.Type {
-		case "MatchCreated":
-			data, err := json.Marshal(event.Data)
-			if err != nil {
-				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
-				return
-			}
-			var matchCreated struct {
-				ID          string    `json:"id"`
-				HomeTeam    string    `json:"homeTeam"`
-				AwayTeam    string    `json:"awayTeam"`
-				Date        time.Time `json:"date"`
-				Competition string    `json:"competition"`
-			}
-			if err := json.Unmarshal(data, &matchCreated); err != nil {
-				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
-				return
-			}
-			match.ID = matchCreated.ID
-			match.HomeTeam = matchCreated.HomeTeam
-			match.AwayTeam = matchCreated.AwayTeam
-			match.Date = matchCreated.Date
-			match.Competition = matchCreated.Competition
-			match.Status = domain.MatchStatusScheduled
-		case "MatchScoreUpdated":
-			data, err := json.Marshal(event.Data)
-			if err != nil {
-				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
-				return
-			}
-			var scoreUpdated struct {
-				MatchID   string    `json:"matchId"`
-				HomeGoals int       `json:"homeGoals"`
-				AwayGoals int       `json:"awayGoals"`
-				UpdatedAt time.Time `json:"updatedAt"`
-			}
-			if err := json.Unmarshal(data, &scoreUpdated); err != nil {
-				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
-				return
-			}
-			match.UpdateScore(scoreUpdated.HomeGoals, scoreUpdated.AwayGoals)
+		if err := h.processMatchEvent(match, *event); err != nil {
+			return nil, fmt.Errorf("failed to process event: %w", err)
 		}
 	}
 
+	return match, nil
+}
+
+// processMatchEvent processes a single match event
+func (h *MatchHandler) processMatchEvent(match *domain.Match, event events.Event) error {
+	data, err := json.Marshal(event.Data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event data: %w", err)
+	}
+
+	switch event.Type {
+	case "MatchCreated":
+		var matchCreated struct {
+			ID          string    `json:"id"`
+			HomeTeam    string    `json:"homeTeam"`
+			AwayTeam    string    `json:"awayTeam"`
+			Date        time.Time `json:"date"`
+			Competition string    `json:"competition"`
+		}
+		if err := json.Unmarshal(data, &matchCreated); err != nil {
+			return fmt.Errorf("failed to unmarshal match created data: %w", err)
+		}
+		match.ID = matchCreated.ID
+		match.HomeTeam = matchCreated.HomeTeam
+		match.AwayTeam = matchCreated.AwayTeam
+		match.Date = matchCreated.Date
+		match.Competition = matchCreated.Competition
+		match.Status = domain.MatchStatusScheduled
+
+	case "MatchScoreUpdated":
+		var scoreUpdated struct {
+			MatchID   string    `json:"matchId"`
+			HomeGoals int       `json:"homeGoals"`
+			AwayGoals int       `json:"awayGoals"`
+			UpdatedAt time.Time `json:"updatedAt"`
+		}
+		if err := json.Unmarshal(data, &scoreUpdated); err != nil {
+			return fmt.Errorf("failed to unmarshal score updated data: %w", err)
+		}
+		match.UpdateScore(scoreUpdated.HomeGoals, scoreUpdated.AwayGoals)
+	}
+
+	return nil
+}
+
+// GetMatch retrieves a match by ID
+func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	matchID := vars["id"]
+
+	// Try to get from read model first
+	match, err := h.matchRepo.GetByID(r.Context(), matchID)
+	if err == nil {
+		h.writeMatchResponse(w, match)
+		return
+	}
+
+	// Fallback to rebuilding from events if not in read model
+	match, err = h.rebuildMatchFromEvents(r.Context(), matchID)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			http.Error(w, "Match not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to retrieve match", http.StatusInternalServerError)
+		return
+	}
+
+	h.writeMatchResponse(w, match)
+}
+
+// writeMatchResponse writes the match response to the HTTP response
+func (h *MatchHandler) writeMatchResponse(w http.ResponseWriter, match *domain.Match) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(match); err != nil {
 		fmt.Printf("error encoding match: %v\n", err)
