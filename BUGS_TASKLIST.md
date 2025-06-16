@@ -62,3 +62,11 @@
   - Added cleanup for the event store if it implements io.Closer
   - Removed attempts to close repositories as they don't implement Close methods
   - The test now passes as the Close method properly handles cleanup
+
+## 7. internal/infrastructure/api/server
+**Test:** `TestNewServer`
+- **Status:** ✅ FIXED
+- **Fix:** Updated the test to properly set up mock database expectations:
+  - Added ExpectPing to the mock database
+  - Verified all expectations were met after server creation
+  - The test now passes as the server is properly initialized with the mock database

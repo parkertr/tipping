@@ -12,11 +12,14 @@ import (
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 	// Create mock database
-	db, _, err := sqlmock.New()
+	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("Failed to create mock database: %v", err)
 	}
 	defer db.Close()
+
+	// Set up expectations for database ping
+	mock.ExpectPing()
 
 	// Test server creation
 	srv, err := server.NewServer(db)
@@ -25,6 +28,11 @@ func TestNewServer(t *testing.T) {
 	}
 	if srv == nil {
 		t.Fatal("Expected server to be created")
+	}
+
+	// Verify that all expectations were met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %v", err)
 	}
 }
 
