@@ -1,3 +1,5 @@
+// Package domain provides the core domain models and business logic for the tipping application.
+// It includes types and methods for managing matches, predictions, and user data.
 package domain
 
 import (
