@@ -34,7 +34,7 @@ func NewTokenManager() *TokenManager {
 }
 
 // GenerateToken generates a new JWT token for a user
-func (m *TokenManager) GenerateToken(userID string) (string, error) {
+func (manager *TokenManager) GenerateToken(userID string) (string, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -49,13 +49,13 @@ func (m *TokenManager) GenerateToken(userID string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(m.secretKey)
+	return token.SignedString(manager.secretKey)
 }
 
 // ValidateToken validates a JWT token and returns the claims
-func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
+func (manager *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(unusedToken *jwt.Token) (interface{}, error) {
-		return m.secretKey, nil
+		return manager.secretKey, nil
 	})
 
 	if err != nil {
@@ -75,12 +75,12 @@ func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 }
 
 // RefreshToken generates a new token with extended expiration
-func (m *TokenManager) RefreshToken(tokenString string) (string, error) {
-	claims, err := m.ValidateToken(tokenString)
+func (manager *TokenManager) RefreshToken(tokenString string) (string, error) {
+	claims, err := manager.ValidateToken(tokenString)
 	if err != nil {
 		return "", err
 	}
 
 	// Generate new token with extended expiration
-	return m.GenerateToken(claims.UserID)
+	return manager.GenerateToken(claims.UserID)
 }
