@@ -206,7 +206,7 @@ func (r *UserRepository) queryUser(ctx context.Context, query string, args ...in
 		&stats.CurrentRank,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, fmt.Errorf("user not found")
 	}
 	if err != nil {
 		return nil, err

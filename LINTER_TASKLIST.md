@@ -2,10 +2,13 @@
 
 ## Rules
 - Always ask the user for confirmation before running any git commands (add, commit, push, etc.).
-- After each successful linter fix, run:
-  1. `git add .` to stage all changed files
-  2. `git commit --no-verify -m "Fix: <brief description of the fix>"` to commit the changes
-  3. Use `--no-verify` while there are linter issues to fix
+- After each successful linter fix:
+  1. Run tests to verify the fix doesn't break existing functionality
+  2. Confirm the linter rule has been fixed by running the linter
+  3. Only then proceed with:
+     - `git add .` to stage all changed files
+     - `git commit --no-verify -m "Fix: <brief description of the fix>"` to commit the changes
+     - Use `--no-verify` while there are linter issues to fix
 
 ## High-priority linter errors (examples, not exhaustive):
 
@@ -27,11 +30,15 @@
 - [x] `internal/infrastructure/api/handlers/matches.go:275`
   - Added constant for initial score values
 
-### 3. Structs missing json tags (musttag)
-- [ ] `internal/infrastructure/api/handlers/predictions.go:80,94,103`
+### 3. Structs missing json tags (musttag) ✅ FIXED
+- [x] `internal/infrastructure/api/handlers/predictions.go:80,94,103`
+  - Added json tags to anonymous structs in event handling
+  - Added tags for MatchCreated, MatchScoreUpdated, and MatchStatusChanged events
 
-### 4. Return both nil error and invalid value (nilnil)
-- [ ] `internal/infrastructure/repository/postgres/user_repository.go:209`
+### 4. Return both nil error and invalid value (nilnil) ✅ FIXED
+- [x] `internal/infrastructure/repository/postgres/user_repository.go:209`
+  - Updated queryUser function to return a proper error when no rows are found
+  - Changed `return nil, nil` to `return nil, fmt.Errorf("user not found")`
 
 ### 5. No blank line before continue/break/return (nlreturn)
 - [ ] `cmd/import-fixtures/main.go:94,100,117`
