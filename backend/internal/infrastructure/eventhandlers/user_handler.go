@@ -95,7 +95,10 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 	user.Picture = data.Picture
 	user.UpdatedAt = data.UpdatedAt
 
-	return h.userRepo.Update(ctx, user)
+	if err := h.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return nil
 }
 
 // handleUserDeactivated processes UserDeactivated events.
@@ -123,5 +126,8 @@ func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *eve
 	user.IsActive = false
 	user.UpdatedAt = data.UpdatedAt
 
-	return h.userRepo.Update(ctx, user)
+	if err := h.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return nil
 }

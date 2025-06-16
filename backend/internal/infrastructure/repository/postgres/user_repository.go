@@ -149,7 +149,11 @@ func (repo *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domai
 		users = append(users, user)
 	}
 
-	return users, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating users: %w", err)
+	}
+
+	return users, nil
 }
 
 // UpdateStats implements repository.UserRepository.
@@ -243,11 +247,11 @@ func (repo *UserRepository) queryUser(ctx context.Context, query string, args ..
 		&stats.CurrentRank,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, errors.New("user not found")
+		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to scan user row: %w", err)
 	}
 
 	user.Stats = stats
