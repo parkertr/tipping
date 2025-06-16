@@ -44,9 +44,14 @@ func NewAuthHandler(userRepo repository.UserRepository, tokenManager *auth.Token
 
 // RegisterRoutes registers the auth handler routes
 func (h *AuthHandler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/auth/google", h.GoogleLogin).Methods("GET")
-	r.HandleFunc("/auth/google/callback", h.GoogleCallback).Methods("GET")
-	r.HandleFunc("/auth/refresh", h.RefreshToken).Methods("POST")
+	r.HandleFunc("/google", h.GoogleLogin).Methods("GET")
+	r.HandleFunc("/google/callback", h.GoogleCallback).Methods("GET")
+	r.HandleFunc("/refresh", h.RefreshToken).Methods("POST")
+	r.HandleFunc("/me", h.GetProfile).Methods("GET")
+	r.HandleFunc("/me", h.UpdateProfile).Methods("PUT")
+	r.HandleFunc("/me/deactivate", h.DeactivateProfile).Methods("POST")
+	r.HandleFunc("/me/stats", h.GetUserStats).Methods("GET")
+	r.HandleFunc("/me/ranking", h.GetUserRanking).Methods("GET")
 }
 
 // GoogleLogin initiates the Google OAuth flow
@@ -156,6 +161,12 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 
 // RefreshToken refreshes a JWT token
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
 	var req struct {
 		Token string `json:"token"`
 	}
@@ -179,8 +190,8 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 // GetProfile returns the current user's profile
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value("user").(*domain.User)
-	if user == nil {
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
@@ -194,8 +205,8 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProfile updates the current user's profile
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value("user").(*domain.User)
-	if user == nil {
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
@@ -231,10 +242,10 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeactivateProfile deactivates the current user's account
+// DeactivateProfile deactivates the current user's profile
 func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value("user").(*domain.User)
-	if user == nil {
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
@@ -256,8 +267,8 @@ func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) 
 
 // GetUserStats returns the current user's statistics
 func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value("user").(*domain.User)
-	if user == nil {
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
@@ -275,10 +286,10 @@ func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetUserRanking returns the user's ranking and leaderboard position
+// GetUserRanking returns the current user's ranking
 func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value("user").(*domain.User)
-	if user == nil {
+	user, ok := r.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}

@@ -1,30 +1,232 @@
 package server_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
+	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
-// Add mock types for the required interfaces
-
-type mockUserRepo struct{ repository.UserRepository }
-type mockMatchRepo struct{ repository.MatchRepository }
-type mockPredictionRepo struct {
-	repository.PredictionRepository
+// Mock implementations
+type mockUserRepo struct {
+	users map[string]*domain.User
 }
-type mockEventStore struct{ handlers.EventStore }
+
+func newMockUserRepo() *mockUserRepo {
+	return &mockUserRepo{
+		users: make(map[string]*domain.User),
+	}
+}
+
+func (m *mockUserRepo) Create(ctx context.Context, user *domain.User) error {
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *mockUserRepo) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	if user, ok := m.users[id]; ok {
+		return user, nil
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepo) GetByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
+	for _, user := range m.users {
+		if user.GoogleID == googleID {
+			return user, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepo) Update(ctx context.Context, user *domain.User) error {
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *mockUserRepo) List(ctx context.Context, activeOnly bool) ([]*domain.User, error) {
+	users := make([]*domain.User, 0, len(m.users))
+	for _, user := range m.users {
+		if !activeOnly || user.IsActive {
+			users = append(users, user)
+		}
+	}
+	return users, nil
+}
+
+func (m *mockUserRepo) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
+	if user, ok := m.users[userID]; ok {
+		user.UpdateStats(points, isCorrect)
+		return nil
+	}
+	return nil
+}
+
+func (m *mockUserRepo) UpdateRank(ctx context.Context, userID string, rank int) error {
+	if user, ok := m.users[userID]; ok {
+		user.Stats.CurrentRank = rank
+		return nil
+	}
+	return nil
+}
+
+type mockMatchRepo struct {
+	matches map[string]*domain.Match
+}
+
+func newMockMatchRepo() *mockMatchRepo {
+	return &mockMatchRepo{
+		matches: make(map[string]*domain.Match),
+	}
+}
+
+func (m *mockMatchRepo) Create(ctx context.Context, match *domain.Match) error {
+	m.matches[match.ID] = match
+	return nil
+}
+
+func (m *mockMatchRepo) GetByID(ctx context.Context, id string) (*domain.Match, error) {
+	if match, ok := m.matches[id]; ok {
+		return match, nil
+	}
+	return nil, nil
+}
+
+func (m *mockMatchRepo) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+	matches := make([]*domain.Match, 0, len(m.matches))
+	for _, match := range m.matches {
+		if filters.Status == nil || *filters.Status == string(match.Status) {
+			matches = append(matches, match)
+		}
+	}
+	return matches, nil
+}
+
+func (m *mockMatchRepo) Update(ctx context.Context, match *domain.Match) error {
+	m.matches[match.ID] = match
+	return nil
+}
+
+type mockPredictionRepo struct {
+	predictions map[string]*domain.Prediction
+}
+
+func newMockPredictionRepo() *mockPredictionRepo {
+	return &mockPredictionRepo{
+		predictions: make(map[string]*domain.Prediction),
+	}
+}
+
+func (m *mockPredictionRepo) Create(ctx context.Context, prediction *domain.Prediction) error {
+	m.predictions[prediction.ID] = prediction
+	return nil
+}
+
+func (m *mockPredictionRepo) GetByID(ctx context.Context, id string) (*domain.Prediction, error) {
+	if prediction, ok := m.predictions[id]; ok {
+		return prediction, nil
+	}
+	return nil, nil
+}
+
+func (m *mockPredictionRepo) GetByUserAndMatch(ctx context.Context, userID, matchID string) (*domain.Prediction, error) {
+	for _, prediction := range m.predictions {
+		if prediction.UserID == userID && prediction.MatchID == matchID {
+			return prediction, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockPredictionRepo) ListByUser(ctx context.Context, userID string) ([]*domain.Prediction, error) {
+	predictions := make([]*domain.Prediction, 0)
+	for _, prediction := range m.predictions {
+		if prediction.UserID == userID {
+			predictions = append(predictions, prediction)
+		}
+	}
+	return predictions, nil
+}
+
+func (m *mockPredictionRepo) ListByMatch(ctx context.Context, matchID string) ([]*domain.Prediction, error) {
+	predictions := make([]*domain.Prediction, 0)
+	for _, prediction := range m.predictions {
+		if prediction.MatchID == matchID {
+			predictions = append(predictions, prediction)
+		}
+	}
+	return predictions, nil
+}
+
+func (m *mockPredictionRepo) Update(ctx context.Context, prediction *domain.Prediction) error {
+	m.predictions[prediction.ID] = prediction
+	return nil
+}
+
+type mockEventStore struct {
+	events map[string][]*events.Event
+}
+
+func newMockEventStore() *mockEventStore {
+	return &mockEventStore{
+		events: make(map[string][]*events.Event),
+	}
+}
+
+func (m *mockEventStore) SaveEvent(ctx context.Context, event *events.Event) error {
+	m.events[event.ID] = append(m.events[event.ID], event)
+	return nil
+}
+
+func (m *mockEventStore) GetEvents(ctx context.Context, id string) ([]*events.Event, error) {
+	return m.events[id], nil
+}
+
+func (m *mockEventStore) GetEventsByType(ctx context.Context, eventType string) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, events := range m.events {
+		for _, event := range events {
+			if event.Type == eventType {
+				result = append(result, event)
+			}
+		}
+	}
+	return result, nil
+}
+
+func (m *mockEventStore) GetEventsByTimeRange(ctx context.Context, start, end time.Time) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, events := range m.events {
+		for _, event := range events {
+			if event.Timestamp.After(start) && event.Timestamp.Before(end) {
+				result = append(result, event)
+			}
+		}
+	}
+	return result, nil
+}
 
 func TestNewServer(t *testing.T) {
 	t.Parallel()
-	userRepo := &mockUserRepo{}
-	matchRepo := &mockMatchRepo{}
-	predictionRepo := &mockPredictionRepo{}
-	eventStore := &mockEventStore{}
+	userRepo := newMockUserRepo()
+	matchRepo := newMockMatchRepo()
+	predictionRepo := newMockPredictionRepo()
+	eventStore := newMockEventStore()
 
 	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 	if srv == nil {
@@ -34,10 +236,40 @@ func TestNewServer(t *testing.T) {
 
 func TestServerRoutes(t *testing.T) {
 	t.Parallel()
-	userRepo := &mockUserRepo{}
-	matchRepo := &mockMatchRepo{}
-	predictionRepo := &mockPredictionRepo{}
-	eventStore := &mockEventStore{}
+	userRepo := newMockUserRepo()
+	matchRepo := newMockMatchRepo()
+	predictionRepo := newMockPredictionRepo()
+	eventStore := newMockEventStore()
+
+	// Create test data
+	user := &domain.User{
+		ID:       "123",
+		GoogleID: "google123",
+		Email:    "test@example.com",
+		Name:     "Test User",
+	}
+	userRepo.Create(context.Background(), user)
+
+	match := &domain.Match{
+		ID:          "123",
+		HomeTeam:    "Home",
+		AwayTeam:    "Away",
+		Date:        time.Now(),
+		Competition: "Test League",
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
+	matchRepo.Create(context.Background(), match)
+
+	prediction := &domain.Prediction{
+		ID:        "123",
+		UserID:    "123",
+		MatchID:   "123",
+		HomeGoals: 2,
+		AwayGoals: 1,
+		CreatedAt: time.Now(),
+	}
+	predictionRepo.Create(context.Background(), prediction)
 
 	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 
@@ -81,10 +313,10 @@ func TestServerRoutes(t *testing.T) {
 
 func TestMiddleware(t *testing.T) {
 	t.Parallel()
-	userRepo := &mockUserRepo{}
-	matchRepo := &mockMatchRepo{}
-	predictionRepo := &mockPredictionRepo{}
-	eventStore := &mockEventStore{}
+	userRepo := newMockUserRepo()
+	matchRepo := newMockMatchRepo()
+	predictionRepo := newMockPredictionRepo()
+	eventStore := newMockEventStore()
 
 	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 
@@ -111,6 +343,12 @@ func TestMiddleware(t *testing.T) {
 			name:           "Invalid token",
 			path:           "/api/auth/me",
 			authHeader:     "Bearer invalid-token",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Valid token but user not found",
+			path:           "/api/auth/me",
+			authHeader:     "Bearer valid-token",
 			expectedStatus: http.StatusUnauthorized,
 		},
 	}

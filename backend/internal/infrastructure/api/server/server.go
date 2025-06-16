@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -31,10 +32,61 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 	matchHandler := handlers.NewMatchHandler(eventStore, matchRepo)
 	predictionHandler := handlers.NewPredictionHandler(eventStore)
 
+	// Create subrouters for authenticated and unauthenticated routes
+	authRouter := router.PathPrefix("/api/auth").Subrouter()
+	apiRouter := router.PathPrefix("/api").Subrouter()
+
+	// Add authentication middleware to API routes
+	apiRouter.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip auth for certain routes
+			if strings.HasPrefix(r.URL.Path, "/api/auth/google") || r.URL.Path == "/api/auth/refresh" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Get token from Authorization header
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				return
+			}
+
+			// Extract token
+			tokenString := authHeader
+			if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				tokenString = authHeader[7:]
+			}
+
+			// Validate token
+			claims, err := tokenManager.ValidateToken(tokenString)
+			if err != nil {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			// Get user from repository
+			user, err := userRepo.GetByID(r.Context(), claims.Subject)
+			if err != nil {
+				http.Error(w, "User not found", http.StatusUnauthorized)
+				return
+			}
+
+			if user == nil {
+				http.Error(w, "User not found", http.StatusUnauthorized)
+				return
+			}
+
+			// Add user to context
+			ctx := context.WithValue(r.Context(), "user", user)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	})
+
 	// Register routes
-	authHandler.RegisterRoutes(router)
-	matchHandler.RegisterRoutes(router)
-	predictionHandler.RegisterRoutes(router)
+	authHandler.RegisterRoutes(authRouter)
+	matchHandler.RegisterRoutes(apiRouter)
+	predictionHandler.RegisterRoutes(apiRouter)
 
 	return &Server{
 		router: router,
