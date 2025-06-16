@@ -3,7 +3,7 @@
 ## Rules
 - Always ask the user for confirmation before running any git commands (add, commit, push, etc.).
 - After each successful linter fix:
-  1. Run tests to verify the fix doesn't break existing functionality
+  1. Run tests automatically with `go test ./...` (without -v flag to only show failures)
   2. Confirm the linter rule has been fixed by running the linter
   3. Only then proceed with:
      - `git add .` to stage all changed files
