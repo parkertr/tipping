@@ -2,6 +2,8 @@ package domain
 
 import (
 	"time"
+
+	"github.com/parkertr/tipping/internal/constants"
 )
 
 // Prediction represents a user's prediction for a match
@@ -31,22 +33,22 @@ func NewPrediction(id, userID, matchID string, homeGoals, awayGoals int) *Predic
 // CalculatePoints calculates the points awarded for this prediction
 func (p *Prediction) CalculatePoints(match *Match) int {
 	if match.Score == nil {
-		return 0
+		return constants.NoPoints
 	}
 
-	// Exact score prediction (3 points)
+	// Exact score prediction
 	if p.HomeGoals == match.Score.HomeGoals && p.AwayGoals == match.Score.AwayGoals {
-		return 3
+		return constants.ExactScorePoints
 	}
 
-	// Correct result prediction (1 point)
+	// Correct result prediction
 	predictionResult := p.GetResult()
 	matchResult := match.GetResult()
 	if predictionResult == matchResult {
-		return 1
+		return constants.CorrectResultPoints
 	}
 
-	return 0
+	return constants.NoPoints
 }
 
 // GetResult returns the predicted result (home win, away win, or draw)

@@ -9,9 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/parkertr/tipping/internal/constants"
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
 )
 
@@ -48,11 +48,11 @@ func main() {
 	httpServer := &http.Server{
 		Addr:              ":8080",
 		Handler:           srv,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    1 << 20,
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       constants.DefaultReadTimeout,
+		WriteTimeout:      constants.DefaultWriteTimeout,
+		IdleTimeout:       constants.DefaultIdleTimeout,
+		MaxHeaderBytes:    constants.DefaultMaxHeaderBytes,
+		ReadHeaderTimeout: constants.DefaultHeaderTimeout,
 	}
 
 	// Start server in a goroutine
@@ -69,8 +69,8 @@ func main() {
 	<-quit
 	log.Println("Shutting down server...")
 
-	// Create shutdown context with 10 second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Create shutdown context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
 	defer cancel()
 
 	// Shutdown server gracefully

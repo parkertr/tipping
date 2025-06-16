@@ -3,6 +3,8 @@ package domain
 import (
 	"fmt"
 	"time"
+
+	"github.com/parkertr/tipping/internal/constants"
 )
 
 // User represents a user in the system
@@ -39,10 +41,10 @@ func NewUser(googleID, email, name, picture string) *User {
 		UpdatedAt: now,
 		IsActive:  true,
 		Stats: UserStats{
-			TotalPoints:        0,
-			CorrectPredictions: 0,
-			TotalPredictions:   0,
-			CurrentRank:        0,
+			TotalPoints:        constants.InitialStats,
+			CorrectPredictions: constants.InitialStats,
+			TotalPredictions:   constants.InitialStats,
+			CurrentRank:        constants.InitialStats,
 		},
 	}
 }

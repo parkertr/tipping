@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/parkertr/tipping/internal/constants"
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/eventhandlers"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
@@ -181,7 +182,7 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 		Date:        time.Time{},
 		Competition: "",
 		Status:      domain.MatchStatusScheduled,
-		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+		Score:       &domain.Score{HomeGoals: constants.InitialScore, AwayGoals: constants.InitialScore},
 	}
 	for _, event := range events {
 		switch event.Type {

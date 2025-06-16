@@ -15,12 +15,17 @@
 - [x] `internal/infrastructure/repository/postgres/prediction_repository.go:103`
   - Split long error message in GetByUserAndMatch into multiple lines
 
-### 2. Magic numbers (mnd)
-- [ ] `cmd/api/main.go:51,52,53,54,55,73`
-- [ ] `internal/auth/jwt.go:40`
-- [ ] `internal/domain/prediction.go:39`
-- [ ] `internal/domain/user.go:83`
-- [ ] `internal/infrastructure/api/handlers/matches.go:275`
+### 2. Magic numbers (mnd) ✅ FIXED
+- [x] `cmd/api/main.go:51,52,53,54,55,73`
+  - Created constants for server timeouts and configuration
+- [x] `internal/auth/jwt.go:40`
+  - Added constant for token expiration time
+- [x] `internal/domain/prediction.go:39`
+  - Added constants for prediction points
+- [x] `internal/domain/user.go:83`
+  - Added constant for initial stats values
+- [x] `internal/infrastructure/api/handlers/matches.go:275`
+  - Added constant for initial score values
 
 ### 3. Structs missing json tags (musttag)
 - [ ] `internal/infrastructure/api/handlers/predictions.go:80,94,103`
