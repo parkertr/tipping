@@ -104,6 +104,11 @@ func (s *Server) Start(addr string) error {
 
 // Close cleans up any resources used by the server
 func (s *Server) Close() error {
-	// Add any cleanup logic here if needed
+	// Close the event store if it implements io.Closer
+	if closer, ok := s.eventStore.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			return err
+		}
+	}
 	return nil
 }

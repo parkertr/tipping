@@ -54,3 +54,11 @@
     - Invalid token
   - Each test case verifies the correct 401 Unauthorized response
   - Removed unused mock variable to fix linter error
+
+## 6. internal/infrastructure/api/server
+**Test:** `TestServerClose`
+- **Status:** ✅ FIXED
+- **Fix:** Updated the server's Close method to properly clean up resources:
+  - Added cleanup for the event store if it implements io.Closer
+  - Removed attempts to close repositories as they don't implement Close methods
+  - The test now passes as the Close method properly handles cleanup
