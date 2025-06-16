@@ -90,11 +90,11 @@ func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("prediction not found: %w", err)
+		return nil, fmt.Errorf("prediction not found with ID %s: %w", id, err)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get prediction: %w", err)
+		return nil, fmt.Errorf("failed to get prediction with ID %s: %w", id, err)
 	}
 
 	return prediction, nil
@@ -146,7 +146,7 @@ func (r *PredictionRepository) scanPredictions(rows *sql.Rows) ([]*domain.Predic
 			&prediction.Points,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan prediction: %w", err)
+			return nil, fmt.Errorf("failed to scan prediction row: %w", err)
 		}
 		predictions = append(predictions, prediction)
 	}
@@ -168,7 +168,7 @@ func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list predictions: %w", err)
+		return nil, fmt.Errorf("failed to list predictions for user %s: %w", userID, err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -189,7 +189,7 @@ func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) 
 
 	rows, err := r.db.QueryContext(ctx, query, matchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list predictions: %w", err)
+		return nil, fmt.Errorf("failed to list predictions for match %s: %w", matchID, err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
