@@ -60,8 +60,10 @@ func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
+
 			return nil, ErrExpiredToken
 		}
+
 		return nil, ErrInvalidToken
 	}
 

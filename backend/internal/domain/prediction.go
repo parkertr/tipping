@@ -59,5 +59,6 @@ func (p *Prediction) GetResult() string {
 	if p.AwayGoals > p.HomeGoals {
 		return "away"
 	}
+
 	return "draw"
 }

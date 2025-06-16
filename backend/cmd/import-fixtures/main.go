@@ -91,12 +91,14 @@ func main() {
 		existingEvents, err := eventStore.GetEvents(ctx, fixture.ID)
 		if err != nil {
 			log.Printf("Error checking for existing match %s: %v", fixture.ID, err)
+
 			continue
 		}
 
 		if len(existingEvents) > 0 {
 			fmt.Printf("Skipping %s vs %s - already exists\n", fixture.HomeTeam, fixture.AwayTeam)
 			skipped++
+
 			continue
 		}
 
@@ -114,6 +116,7 @@ func main() {
 		// Save event
 		if err := eventStore.SaveEvent(ctx, event); err != nil {
 			log.Printf("Failed to import match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
+
 			continue
 		}
 

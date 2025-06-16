@@ -48,6 +48,7 @@ func (h *MatchEventHandler) handleMatchCreated(ctx context.Context, event *event
 
 	var matchCreated events.MatchCreated
 	if err := json.Unmarshal(data, &matchCreated); err != nil {
+
 		return fmt.Errorf("failed to unmarshal MatchCreated event: %w", err)
 	}
 
@@ -63,6 +64,7 @@ func (h *MatchEventHandler) handleMatchCreated(ctx context.Context, event *event
 	// Save to read model
 	if err := h.matchRepo.Create(ctx, match); err != nil {
 		log.Printf("Failed to create match in read model: %v", err)
+
 		return fmt.Errorf("failed to create match in read model: %w", err)
 	}
 
@@ -112,6 +114,7 @@ func (h *MatchEventHandler) handleMatchStatusChanged(ctx context.Context, event 
 
 	var statusChanged events.MatchStatusChanged
 	if err := json.Unmarshal(data, &statusChanged); err != nil {
+
 		return fmt.Errorf("failed to unmarshal MatchStatusChanged event: %w", err)
 	}
 

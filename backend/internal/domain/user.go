@@ -31,6 +31,7 @@ type UserStats struct {
 // NewUser creates a new user instance
 func NewUser(googleID, email, name, picture string) *User {
 	now := time.Now()
+
 	return &User{
 		ID:        fmt.Sprintf("%d", now.UnixNano()),
 		GoogleID:  googleID,

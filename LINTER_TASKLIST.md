@@ -40,11 +40,21 @@
   - Updated queryUser function to return a proper error when no rows are found
   - Changed `return nil, nil` to `return nil, fmt.Errorf("user not found")`
 
-### 5. No blank line before continue/break/return (nlreturn)
-- [ ] `cmd/import-fixtures/main.go:94,100,117`
-- [ ] `internal/infrastructure/api/handlers/auth_handler.go:319`
-- [ ] `internal/infrastructure/api/handlers/mocks/eventstore.go:18`
-- [ ] `internal/infrastructure/api/handlers/mocks/mock_repository.go:18,23`
+### 5. No blank line before continue/break/return (nlreturn) ✅ FIXED
+- [x] `cmd/import-fixtures/main.go:94,100,117`
+  - Added blank lines before continue statements
+- [x] `internal/infrastructure/api/handlers/auth_handler.go:319`
+  - Added blank line before break statement
+- [x] `internal/infrastructure/eventhandlers/match_handler.go:66,70,71,102,103,135`
+  - Added blank lines before return statements
+- [x] `internal/domain/match.go:76`
+  - Added blank line before return statement
+- [x] `internal/domain/prediction.go:62`
+  - Added blank line before return statement
+- [x] `internal/domain/user.go:34`
+  - Added blank line before return statement
+- [x] `internal/auth/jwt.go:52,65`
+  - Added blank lines before return statements
 
 ### 6. Unused parameter (revive)
 - [ ] `internal/auth/jwt.go:56`

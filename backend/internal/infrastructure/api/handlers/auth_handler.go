@@ -316,6 +316,7 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 	for i, u := range users {
 		if u.ID == user.ID {
 			position = i + 1
+
 			break
 		}
 	}
