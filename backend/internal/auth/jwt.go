@@ -54,7 +54,7 @@ func (manager *TokenManager) GenerateToken(userID string) (string, error) {
 
 // ValidateToken validates a JWT token and returns the claims
 func (manager *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(unusedToken *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(_ *jwt.Token) (interface{}, error) {
 		return manager.secretKey, nil
 	})
 
