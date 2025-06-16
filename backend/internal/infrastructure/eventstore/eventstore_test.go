@@ -18,9 +18,9 @@ func TestNewPostgresEventStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer func() {
+	t.Cleanup(func() {
 		_ = db.Close() // Ignore close errors for mock database
-	}()
+	})
 
 	// Set up expectations for database ping
 	mock.ExpectPing()
@@ -45,9 +45,9 @@ func TestSaveEvent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
@@ -89,9 +89,9 @@ func TestSaveEvent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
@@ -137,9 +137,9 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
@@ -225,9 +225,9 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
