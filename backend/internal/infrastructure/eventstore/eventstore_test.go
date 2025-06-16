@@ -1,7 +1,6 @@
 package eventstore_test
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -58,7 +57,7 @@ func TestSaveEvent(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		matchCreated := &events.MatchCreated{
 			ID:          "match123",
 			HomeTeam:    "Team A",
@@ -102,7 +101,7 @@ func TestSaveEvent(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		predictionMade := &events.PredictionMade{
 			ID:        "pred123",
 			UserID:    "user123",
@@ -150,7 +149,7 @@ func TestGetEvents(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		matchID := "match123"
 		now := time.Now()
 		matchCreated := events.MatchCreated{
@@ -238,7 +237,7 @@ func TestGetEvents(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		userID := "user123"
 		now := time.Now()
 		predictionMade := events.PredictionMade{
