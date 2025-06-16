@@ -17,12 +17,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Test cases for prediction-related handlers
+// Test cases for prediction-related handlers.
 func TestCreatePrediction(t *testing.T) {
 	t.Parallel()
 	// Test case 1: Valid prediction creation
 	t.Run("Valid prediction creation", func(t *testing.T) {
 		t.Parallel()
+
 		mockStore := new(mocks.MockEventStore)
 		handler := handlers.NewPredictionHandler(mockStore)
 		prediction := domain.NewPrediction(
@@ -84,12 +85,14 @@ func TestCreatePrediction(t *testing.T) {
 		if rr.Code != http.StatusCreated {
 			t.Errorf("expected status %d, got %d", http.StatusCreated, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 	})
 
 	// Test case 2: Invalid JSON
 	t.Run("Invalid JSON", func(t *testing.T) {
 		t.Parallel()
+
 		mockStore := new(mocks.MockEventStore)
 		handler := handlers.NewPredictionHandler(mockStore)
 		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBufferString("invalid json"))
@@ -105,6 +108,7 @@ func TestCreatePrediction(t *testing.T) {
 	// Test case 3: Match not found
 	t.Run("Match not found", func(t *testing.T) {
 		t.Parallel()
+
 		mockStore := new(mocks.MockEventStore)
 		handler := handlers.NewPredictionHandler(mockStore)
 		prediction := domain.Prediction{
@@ -132,12 +136,14 @@ func TestCreatePrediction(t *testing.T) {
 		if rr.Code != http.StatusNotFound {
 			t.Errorf("expected status %d, got %d", http.StatusNotFound, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 	})
 
 	// Test case 4: Match already finished
 	t.Run("Match already finished", func(t *testing.T) {
 		t.Parallel()
+
 		mockStore := new(mocks.MockEventStore)
 		handler := handlers.NewPredictionHandler(mockStore)
 		prediction := domain.Prediction{
@@ -211,6 +217,7 @@ func TestCreatePrediction(t *testing.T) {
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 	})
 }
@@ -227,7 +234,7 @@ func TestGetUserPredictions(t *testing.T) {
 		userID := "user123"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("GET", "/api/users/"+userID+"/predictions", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/users/"+userID+"/predictions", nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"userId": userID})
 
@@ -274,6 +281,7 @@ func TestGetUserPredictions(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 	})
 
@@ -286,7 +294,7 @@ func TestGetUserPredictions(t *testing.T) {
 		userID := "user123"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("GET", "/api/users/"+userID+"/predictions", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/users/"+userID+"/predictions", nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"userId": userID})
 
@@ -323,6 +331,7 @@ func TestGetUserPredictions(t *testing.T) {
 		if err := json.NewDecoder(rr.Body).Decode(&predictions); err != nil {
 			t.Errorf("failed to decode response: %v", err)
 		}
+
 		if len(predictions) != 0 {
 			t.Errorf("expected empty predictions array, got %d predictions", len(predictions))
 		}
@@ -340,10 +349,11 @@ func TestGetMatchPredictions(t *testing.T) {
 	// Test case 1: Match has predictions
 	t.Run("Match has predictions", func(t *testing.T) {
 		t.Parallel()
+
 		matchID := "match123"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("GET", "/api/matches/"+matchID+"/predictions", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/matches/"+matchID+"/predictions", nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"matchId": matchID})
 
@@ -390,16 +400,18 @@ func TestGetMatchPredictions(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 	})
 
 	// Test case 2: Match has no predictions
 	t.Run("Match has no predictions", func(t *testing.T) {
 		t.Parallel()
+
 		matchID := "match123"
 
 		// Create request with mux vars
-		req := httptest.NewRequest("GET", "/api/matches/"+matchID+"/predictions", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/matches/"+matchID+"/predictions", nil)
 		rr := httptest.NewRecorder()
 		req = mux.SetURLVars(req, map[string]string{"matchId": matchID})
 
@@ -413,6 +425,7 @@ func TestGetMatchPredictions(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 	})
 }

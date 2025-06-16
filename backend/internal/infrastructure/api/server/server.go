@@ -14,13 +14,13 @@ import (
 	"github.com/parkertr/tipping/pkg/utils"
 )
 
-// Server represents the HTTP server
+// Server represents the HTTP server.
 type Server struct {
 	router *mux.Router
 	server *http.Server
 }
 
-// NewServer creates a new server instance
+// NewServer creates a new server instance.
 func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRepository, predictionRepo repository.PredictionRepository, eventStore handlers.EventStore) *Server {
 	router := mux.NewRouter()
 
@@ -42,6 +42,7 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 			// Skip auth for certain routes
 			if strings.HasPrefix(r.URL.Path, "/api/auth/google") || r.URL.Path == "/api/auth/refresh" {
 				next.ServeHTTP(w, r)
+
 				return
 			}
 
@@ -49,6 +50,7 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				http.Error(w, "authorization header required", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -62,6 +64,7 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 			claims, err := tokenManager.ValidateToken(tokenString)
 			if err != nil {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -69,11 +72,13 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 			user, err := userRepo.GetByID(r.Context(), claims.Subject)
 			if err != nil {
 				http.Error(w, "user not found", http.StatusUnauthorized)
+
 				return
 			}
 
 			if user == nil {
 				http.Error(w, "user not found", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -91,7 +96,7 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 	return &Server{
 		router: router,
 		server: &http.Server{
-			Addr:         fmt.Sprintf(":%s", utils.GetEnvOrDefault("PORT", "8080")),
+			Addr:         ":" + utils.GetEnvOrDefault("PORT", "8080"),
 			Handler:      router,
 			ReadTimeout:  utils.GetEnvOrDefaultDuration("SERVER_READ_TIMEOUT", 5*time.Second),
 			WriteTimeout: utils.GetEnvOrDefaultDuration("SERVER_WRITE_TIMEOUT", 10*time.Second),
@@ -100,17 +105,17 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 	}
 }
 
-// Start starts the server
+// Start starts the server.
 func (s *Server) Start() error {
 	return s.server.ListenAndServe()
 }
 
-// Shutdown gracefully shuts down the server
+// Shutdown gracefully shuts down the server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }
 
-// Handler returns the main HTTP handler for the server
+// Handler returns the main HTTP handler for the server.
 func (s *Server) Handler() http.Handler {
 	return s.router
 }

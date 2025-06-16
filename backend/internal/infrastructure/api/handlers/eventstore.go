@@ -7,7 +7,7 @@ import (
 	"github.com/parkertr/tipping/pkg/events"
 )
 
-// EventStore defines the interface for event storage operations needed by handlers
+// EventStore defines the interface for event storage operations needed by handlers.
 type EventStore interface {
 	SaveEvent(ctx context.Context, event *events.Event) error
 	GetEvents(ctx context.Context, aggregateID string) ([]*events.Event, error)

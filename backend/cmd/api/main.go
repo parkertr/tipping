@@ -52,6 +52,7 @@ func main() {
 	// Start server in a goroutine
 	go func() {
 		log.Printf("Server is running on http://localhost%s", httpServer.Addr)
+
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("HTTP server error: %v", err)
 		}

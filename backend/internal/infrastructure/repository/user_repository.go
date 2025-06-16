@@ -6,7 +6,7 @@ import (
 	"github.com/parkertr/tipping/internal/domain"
 )
 
-// UserRepository defines the interface for user data access
+// UserRepository defines the interface for user data access.
 type UserRepository interface {
 	// Create creates a new user
 	Create(ctx context.Context, user *domain.User) error

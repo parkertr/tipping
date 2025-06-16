@@ -2,7 +2,7 @@ package constants
 
 import "time"
 
-// Server timeouts
+// Server timeouts.
 const (
 	DefaultReadTimeout     = 15 * time.Second
 	DefaultWriteTimeout    = 15 * time.Second
@@ -12,19 +12,19 @@ const (
 	DefaultMaxHeaderBytes  = 1 << 20 // 1MB
 )
 
-// JWT settings
+// JWT settings.
 const (
 	DefaultTokenExpiration = 24 * time.Hour
 )
 
-// Prediction points
+// Prediction points.
 const (
 	ExactScorePoints    = 3
 	CorrectResultPoints = 1
 	NoPoints            = 0
 )
 
-// Initial values
+// Initial values.
 const (
 	InitialScore = 0
 	InitialStats = 0

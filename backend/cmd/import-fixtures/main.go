@@ -16,7 +16,7 @@ import (
 	"github.com/parkertr/tipping/pkg/events"
 )
 
-// MatchFixture represents a match fixture from the JSON file
+// MatchFixture represents a match fixture from the JSON file.
 type MatchFixture struct {
 	ID          string    `json:"id"`
 	HomeTeam    string    `json:"homeTeam"`
@@ -31,6 +31,7 @@ func main() {
 		fixturesFile = flag.String("fixtures", "fixtures/matches.json", "Path to fixtures JSON file")
 		dryRun       = flag.Bool("dry-run", false, "Print what would be imported without actually importing")
 	)
+
 	flag.Parse()
 
 	if *dbURL == "" {
@@ -47,10 +48,12 @@ func main() {
 
 	if *dryRun {
 		fmt.Println("\nDry run mode - showing what would be imported:")
+
 		for _, fixture := range fixtures {
 			fmt.Printf("- %s vs %s (%s) on %s\n",
 				fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
 		}
+
 		return
 	}
 
@@ -59,6 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
+
 	defer func() {
 		if err := db.Close(); err != nil {
 			log.Printf("Error closing database: %v", err)
@@ -96,6 +100,7 @@ func main() {
 
 		if len(existingEvents) > 0 {
 			fmt.Printf("Skipping %s vs %s - already exists\n", fixture.HomeTeam, fixture.AwayTeam)
+
 			skipped++
 
 			continue
@@ -127,13 +132,14 @@ func main() {
 
 		fmt.Printf("Imported: %s vs %s (%s) on %s\n",
 			fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
+
 		imported++
 	}
 
 	fmt.Printf("\nImport complete: %d imported, %d skipped\n", imported, skipped)
 }
 
-// readFixtures reads and parses the fixtures JSON file
+// readFixtures reads and parses the fixtures JSON file.
 func readFixtures(filename string) ([]MatchFixture, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {

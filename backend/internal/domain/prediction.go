@@ -6,7 +6,7 @@ import (
 	"github.com/parkertr/tipping/internal/constants"
 )
 
-// Prediction represents a user's prediction for a match
+// Prediction represents a user's prediction for a match.
 type Prediction struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"userId"`
@@ -17,7 +17,7 @@ type Prediction struct {
 	Points    int       `json:"points"`
 }
 
-// NewPrediction creates a new prediction instance
+// NewPrediction creates a new prediction instance.
 func NewPrediction(id, userID, matchID string, homeGoals, awayGoals int) *Prediction {
 	return &Prediction{
 		ID:        id,
@@ -30,7 +30,7 @@ func NewPrediction(id, userID, matchID string, homeGoals, awayGoals int) *Predic
 	}
 }
 
-// CalculatePoints calculates the points awarded for this prediction
+// CalculatePoints calculates the points awarded for this prediction.
 func (prediction *Prediction) CalculatePoints(match *Match) int {
 	if match.Score == nil {
 		return constants.NoPoints
@@ -44,6 +44,7 @@ func (prediction *Prediction) CalculatePoints(match *Match) int {
 	// Correct result prediction
 	predictionResult := prediction.GetResult()
 	matchResult := match.GetResult()
+
 	if predictionResult == matchResult {
 		return constants.CorrectResultPoints
 	}
@@ -51,11 +52,12 @@ func (prediction *Prediction) CalculatePoints(match *Match) int {
 	return constants.NoPoints
 }
 
-// GetResult returns the predicted result (home win, away win, or draw)
+// GetResult returns the predicted result (home win, away win, or draw).
 func (prediction *Prediction) GetResult() string {
 	if prediction.HomeGoals > prediction.AwayGoals {
 		return "home"
 	}
+
 	if prediction.AwayGoals > prediction.HomeGoals {
 		return "away"
 	}

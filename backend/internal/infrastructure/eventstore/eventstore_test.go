@@ -17,6 +17,7 @@ func TestNewPostgresEventStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+
 	t.Cleanup(func() {
 		_ = db.Close() // Ignore close errors for mock database
 	})
@@ -29,6 +30,7 @@ func TestNewPostgresEventStore(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
+
 	if store == nil {
 		t.Errorf("expected store to be non-nil")
 	}
@@ -44,6 +46,7 @@ func TestSaveEvent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
 		})
@@ -88,6 +91,7 @@ func TestSaveEvent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
 		})
@@ -136,6 +140,7 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
 		})
@@ -161,6 +166,7 @@ func TestGetEvents(t *testing.T) {
 		}
 
 		event := events.NewEvent("MatchCreated", matchCreated)
+
 		eventData, err := json.Marshal(matchCreated)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -182,6 +188,7 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		if len(events) != 1 {
 			t.Errorf("expected 1 event, got %d", len(events))
 		}
@@ -196,7 +203,9 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		var resultData map[string]interface{}
+
 		err = json.Unmarshal(data, &resultData)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -205,12 +214,15 @@ func TestGetEvents(t *testing.T) {
 		if matchCreated.ID != resultData["id"] {
 			t.Errorf("expected ID %v, got %v", matchCreated.ID, resultData["id"])
 		}
+
 		if matchCreated.HomeTeam != resultData["homeTeam"] {
 			t.Errorf("expected HomeTeam %v, got %v", matchCreated.HomeTeam, resultData["homeTeam"])
 		}
+
 		if matchCreated.AwayTeam != resultData["awayTeam"] {
 			t.Errorf("expected AwayTeam %v, got %v", matchCreated.AwayTeam, resultData["awayTeam"])
 		}
+
 		if matchCreated.Competition != resultData["competition"] {
 			t.Errorf("expected Competition %v, got %v", matchCreated.Competition, resultData["competition"])
 		}
@@ -224,6 +236,7 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
 		})
@@ -250,6 +263,7 @@ func TestGetEvents(t *testing.T) {
 		}
 
 		event := events.NewEvent("PredictionMade", predictionMade)
+
 		eventData, err := json.Marshal(predictionMade)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -271,6 +285,7 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		if len(events) != 1 {
 			t.Errorf("expected 1 event, got %d", len(events))
 		}
@@ -285,7 +300,9 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		var resultData map[string]interface{}
+
 		err = json.Unmarshal(data, &resultData)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -294,15 +311,19 @@ func TestGetEvents(t *testing.T) {
 		if predictionMade.ID != resultData["id"] {
 			t.Errorf("expected ID %v, got %v", predictionMade.ID, resultData["id"])
 		}
+
 		if predictionMade.UserID != resultData["userId"] {
 			t.Errorf("expected UserID %v, got %v", predictionMade.UserID, resultData["userId"])
 		}
+
 		if predictionMade.MatchID != resultData["matchId"] {
 			t.Errorf("expected MatchID %v, got %v", predictionMade.MatchID, resultData["matchId"])
 		}
+
 		if predictionMade.HomeGoals != int(resultData["homeGoals"].(float64)) {
 			t.Errorf("expected HomeGoals %v, got %v", predictionMade.HomeGoals, resultData["homeGoals"])
 		}
+
 		if predictionMade.AwayGoals != int(resultData["awayGoals"].(float64)) {
 			t.Errorf("expected AwayGoals %v, got %v", predictionMade.AwayGoals, resultData["awayGoals"])
 		}

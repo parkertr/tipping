@@ -27,21 +27,27 @@ func TestNewPrediction(t *testing.T) {
 	if prediction.ID != id {
 		t.Errorf("Expected ID %s, got %s", id, prediction.ID)
 	}
+
 	if prediction.UserID != userID {
 		t.Errorf("Expected UserID %s, got %s", userID, prediction.UserID)
 	}
+
 	if prediction.MatchID != matchID {
 		t.Errorf("Expected MatchID %s, got %s", matchID, prediction.MatchID)
 	}
+
 	if prediction.HomeGoals != homeGoals {
 		t.Errorf("Expected HomeGoals %d, got %d", homeGoals, prediction.HomeGoals)
 	}
+
 	if prediction.AwayGoals != awayGoals {
 		t.Errorf("Expected AwayGoals %d, got %d", awayGoals, prediction.AwayGoals)
 	}
+
 	if prediction.CreatedAt.IsZero() {
 		t.Errorf("expected CreatedAt to be set")
 	}
+
 	if prediction.Points != 0 {
 		t.Errorf("expected Points to be 0, got %v", prediction.Points)
 	}
@@ -52,6 +58,7 @@ func TestCalculatePoints(t *testing.T) {
 
 	t.Run("exact score", func(t *testing.T) {
 		t.Parallel()
+
 		prediction := domain.NewPrediction("pred1", "user1", "match1", 2, 1)
 		match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
 		match.UpdateScore(2, 1)
@@ -64,6 +71,7 @@ func TestCalculatePoints(t *testing.T) {
 
 	t.Run("correct result", func(t *testing.T) {
 		t.Parallel()
+
 		prediction := domain.NewPrediction("pred1", "user1", "match1", 3, 1)
 		match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
 		match.UpdateScore(2, 1)
@@ -76,6 +84,7 @@ func TestCalculatePoints(t *testing.T) {
 
 	t.Run("wrong prediction", func(t *testing.T) {
 		t.Parallel()
+
 		prediction := domain.NewPrediction("pred1", "user1", "match1", 2, 1)
 		match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
 		match.UpdateScore(1, 2)
@@ -92,7 +101,9 @@ func TestGetResult(t *testing.T) {
 
 	t.Run("home win", func(t *testing.T) {
 		t.Parallel()
+
 		prediction := domain.NewPrediction("pred1", "user1", "match1", 2, 1)
+
 		result := prediction.GetResult()
 		if result != "home" {
 			t.Errorf("Expected result 'home', got '%s'", result)
@@ -101,7 +112,9 @@ func TestGetResult(t *testing.T) {
 
 	t.Run("away win", func(t *testing.T) {
 		t.Parallel()
+
 		prediction := domain.NewPrediction("pred1", "user1", "match1", 1, 2)
+
 		result := prediction.GetResult()
 		if result != "away" {
 			t.Errorf("Expected result 'away', got '%s'", result)
@@ -110,7 +123,9 @@ func TestGetResult(t *testing.T) {
 
 	t.Run("draw", func(t *testing.T) {
 		t.Parallel()
+
 		prediction := domain.NewPrediction("pred1", "user1", "match1", 1, 1)
+
 		result := prediction.GetResult()
 		if result != "draw" {
 			t.Errorf("Expected result 'draw', got '%s'", result)

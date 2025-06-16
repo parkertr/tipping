@@ -106,6 +106,7 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	`
 
 	var homeGoals, awayGoals sql.NullInt32
+
 	match := &domain.Match{
 		ID:          "",
 		HomeTeam:    "",
@@ -146,7 +147,9 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 
 func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
 	var conditions []string
+
 	var args []interface{}
+
 	argPos := 1
 
 	if filters.Competition != nil {
@@ -187,6 +190,7 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	if err != nil {
 		return nil, fmt.Errorf("failed to query matches with filters: %w", err)
 	}
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			fmt.Printf("error closing rows: %v\n", err)
@@ -194,8 +198,10 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	}()
 
 	var matches []*domain.Match
+
 	for rows.Next() {
 		var homeGoals, awayGoals sql.NullInt32
+
 		match := &domain.Match{
 			ID:          "",
 			HomeTeam:    "",
@@ -205,6 +211,7 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 			Status:      domain.MatchStatusScheduled,
 			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 		}
+
 		err := rows.Scan(
 			&match.ID,
 			&match.HomeTeam,

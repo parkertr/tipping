@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-// NewPostgresDB creates a new PostgreSQL database connection
+// NewPostgresDB creates a new PostgreSQL database connection.
 func NewPostgresDB() (*sql.DB, error) {
 	// Get database connection string from environment variable or use default
 	dbURL := os.Getenv("DATABASE_URL")
@@ -29,7 +29,7 @@ func NewPostgresDB() (*sql.DB, error) {
 	return db, nil
 }
 
-// CloseDB closes the database connection
+// CloseDB closes the database connection.
 func CloseDB(db *sql.DB) {
 	if err := db.Close(); err != nil {
 		log.Printf("error closing db: %v", err)

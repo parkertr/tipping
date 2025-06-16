@@ -132,11 +132,13 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 	return prediction, nil
 }
 
-// scanPredictions scans rows into a slice of predictions
+// scanPredictions scans rows into a slice of predictions.
 func (r *PredictionRepository) scanPredictions(rows *sql.Rows) ([]*domain.Prediction, error) {
 	var predictions []*domain.Prediction
+
 	for rows.Next() {
 		prediction := &domain.Prediction{}
+
 		err := rows.Scan(
 			&prediction.ID,
 			&prediction.UserID,
@@ -148,6 +150,7 @@ func (r *PredictionRepository) scanPredictions(rows *sql.Rows) ([]*domain.Predic
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan prediction row: %w", err)
 		}
+
 		predictions = append(predictions, prediction)
 	}
 
@@ -170,6 +173,7 @@ func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("failed to list predictions for user %s: %w", userID, err)
 	}
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			fmt.Printf("error closing rows: %v\n", err)
@@ -191,6 +195,7 @@ func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list predictions for match %s: %w", matchID, err)
 	}
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			fmt.Printf("error closing rows: %v\n", err)

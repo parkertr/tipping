@@ -10,19 +10,19 @@ import (
 	"github.com/parkertr/tipping/pkg/events"
 )
 
-// UserEventHandler handles user-related events
+// UserEventHandler handles user-related events.
 type UserEventHandler struct {
 	userRepo repository.UserRepository
 }
 
-// NewUserEventHandler creates a new user event handler
+// NewUserEventHandler creates a new user event handler.
 func NewUserEventHandler(userRepo repository.UserRepository) *UserEventHandler {
 	return &UserEventHandler{
 		userRepo: userRepo,
 	}
 }
 
-// Handle processes user-related events
+// Handle processes user-related events.
 func (h *UserEventHandler) Handle(ctx context.Context, event *events.Event) error {
 	switch event.Type {
 	case "UserRegistered":
@@ -36,13 +36,15 @@ func (h *UserEventHandler) Handle(ctx context.Context, event *events.Event) erro
 	}
 }
 
-// handleUserRegistered processes UserRegistered events
+// handleUserRegistered processes UserRegistered events.
 func (h *UserEventHandler) handleUserRegistered(ctx context.Context, event *events.Event) error {
 	var data events.UserRegistered
+
 	eventData, ok := event.Data.([]byte)
 	if !ok {
 		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
 	}
+
 	if err := json.Unmarshal(eventData, &data); err != nil {
 		return fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
@@ -67,13 +69,15 @@ func (h *UserEventHandler) handleUserRegistered(ctx context.Context, event *even
 	return h.userRepo.Create(ctx, user)
 }
 
-// handleUserProfileUpdated processes UserProfileUpdated events
+// handleUserProfileUpdated processes UserProfileUpdated events.
 func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *events.Event) error {
 	var data events.UserProfileUpdated
+
 	eventData, ok := event.Data.([]byte)
 	if !ok {
 		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
 	}
+
 	if err := json.Unmarshal(eventData, &data); err != nil {
 		return fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
@@ -82,6 +86,7 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 	if err != nil {
 		return err
 	}
+
 	if user == nil {
 		return nil // User not found, ignore event
 	}
@@ -93,13 +98,15 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 	return h.userRepo.Update(ctx, user)
 }
 
-// handleUserDeactivated processes UserDeactivated events
+// handleUserDeactivated processes UserDeactivated events.
 func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *events.Event) error {
 	var data events.UserDeactivated
+
 	eventData, ok := event.Data.([]byte)
 	if !ok {
 		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
 	}
+
 	if err := json.Unmarshal(eventData, &data); err != nil {
 		return fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
@@ -108,6 +115,7 @@ func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *eve
 	if err != nil {
 		return err
 	}
+
 	if user == nil {
 		return nil // User not found, ignore event
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Test cases for match-related handlers
+// Test cases for match-related handlers.
 func TestCreateMatch(t *testing.T) {
 	t.Parallel()
 	// Create mock event store and repository
@@ -28,6 +28,7 @@ func TestCreateMatch(t *testing.T) {
 	// Test case 1: Valid match creation
 	t.Run("Valid match creation", func(t *testing.T) {
 		t.Parallel()
+
 		matchDate := time.Now().Add(24 * time.Hour)
 		match := domain.Match{
 			HomeTeam:    "Team A",
@@ -72,6 +73,7 @@ func TestCreateMatch(t *testing.T) {
 		if rr.Code != http.StatusCreated {
 			t.Errorf("expected status %d, got %d", http.StatusCreated, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 		mockRepo.AssertExpectations(t)
 	})
@@ -79,6 +81,7 @@ func TestCreateMatch(t *testing.T) {
 	// Test case 2: Invalid JSON
 	t.Run("Invalid JSON", func(t *testing.T) {
 		t.Parallel()
+
 		req := httptest.NewRequest(http.MethodPost, "/api/matches", bytes.NewBufferString("invalid json"))
 		rr := httptest.NewRecorder()
 
@@ -100,6 +103,7 @@ func TestGetMatch(t *testing.T) {
 	// Test case 1: Match found in repository
 	t.Run("Match found in repository", func(t *testing.T) {
 		t.Parallel()
+
 		matchID := "123"
 
 		// Create request with mux vars
@@ -129,12 +133,14 @@ func TestGetMatch(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
 		mockRepo.AssertExpectations(t)
 	})
 
 	// Test case 2: Match not found, fallback to events
 	t.Run("Match not found, fallback to events", func(t *testing.T) {
 		t.Parallel()
+
 		matchID := "456"
 
 		// Create request with mux vars
@@ -153,6 +159,7 @@ func TestGetMatch(t *testing.T) {
 		if rr.Code != http.StatusNotFound {
 			t.Errorf("expected status %d, got %d", http.StatusNotFound, rr.Code)
 		}
+
 		mockRepo.AssertExpectations(t)
 		mockStore.AssertExpectations(t)
 	})
@@ -201,6 +208,7 @@ func TestListMatches(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
 		mockRepo.AssertExpectations(t)
 	})
 }
@@ -215,6 +223,7 @@ func TestUpdateMatchScore(t *testing.T) {
 	// Test case: Valid score update
 	t.Run("Valid score update", func(t *testing.T) {
 		t.Parallel()
+
 		matchID := "123"
 
 		// Create request with mux vars
@@ -245,6 +254,7 @@ func TestUpdateMatchScore(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 		}
+
 		mockStore.AssertExpectations(t)
 		mockRepo.AssertExpectations(t)
 	})

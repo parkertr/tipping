@@ -10,10 +10,10 @@ import (
 	"github.com/parkertr/tipping/pkg/auth"
 )
 
-// UserContextKey is the key used to store the user in the context
+// UserContextKey is the key used to store the user in the context.
 var UserContextKey = struct{}{}
 
-// AuthMiddleware is a middleware that checks for a valid JWT token
+// AuthMiddleware is a middleware that checks for a valid JWT token.
 func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,6 +21,7 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				http.Error(w, "authorization header is required", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -28,6 +29,7 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
 				http.Error(w, "authorization header format must be Bearer {token}", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -35,6 +37,7 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 			claims, err := tokenManager.ValidateToken(parts[1])
 			if err != nil {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -42,10 +45,13 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 			user, err := userRepo.GetByID(r.Context(), claims.UserID)
 			if err != nil {
 				http.Error(w, "failed to get user", http.StatusInternalServerError)
+
 				return
 			}
+
 			if user == nil {
 				http.Error(w, "user not found", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -56,22 +62,25 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 	}
 }
 
-// GetUserFromContext retrieves the user from the request context
+// GetUserFromContext retrieves the user from the request context.
 func GetUserFromContext(ctx context.Context) *domain.User {
 	if user, ok := ctx.Value(UserContextKey).(*domain.User); ok {
 		return user
 	}
+
 	return nil
 }
 
-// RequireAuth is a middleware that ensures the request has a valid authenticated user
+// RequireAuth is a middleware that ensures the request has a valid authenticated user.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := GetUserFromContext(r.Context())
 		if user == nil {
 			http.Error(w, "authentication required", http.StatusUnauthorized)
+
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }

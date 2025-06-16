@@ -9,17 +9,17 @@ import (
 	"github.com/parkertr/tipping/internal/domain"
 )
 
-// UserRepository implements repository.UserRepository for PostgreSQL
+// UserRepository implements repository.UserRepository for PostgreSQL.
 type UserRepository struct {
 	db *sql.DB
 }
 
-// NewUserRepository creates a new PostgreSQL user repository
+// NewUserRepository creates a new PostgreSQL user repository.
 func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Create implements repository.UserRepository
+// Create implements repository.UserRepository.
 func (repo *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
 		INSERT INTO users_view (
@@ -28,6 +28,7 @@ func (repo *UserRepository) Create(ctx context.Context, user *domain.User) error
 			total_points, correct_predictions, total_predictions, current_rank
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
+
 	_, err := repo.db.ExecContext(ctx, query,
 		user.ID,
 		user.GoogleID,
@@ -45,10 +46,11 @@ func (repo *UserRepository) Create(ctx context.Context, user *domain.User) error
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
+
 	return nil
 }
 
-// GetByID implements repository.UserRepository
+// GetByID implements repository.UserRepository.
 func (repo *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
@@ -57,10 +59,11 @@ func (repo *UserRepository) GetByID(ctx context.Context, id string) (*domain.Use
 		FROM users_view
 		WHERE id = $1
 	`
+
 	return repo.queryUser(ctx, query, id)
 }
 
-// GetByGoogleID implements repository.UserRepository
+// GetByGoogleID implements repository.UserRepository.
 func (repo *UserRepository) GetByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
@@ -69,10 +72,11 @@ func (repo *UserRepository) GetByGoogleID(ctx context.Context, googleID string) 
 		FROM users_view
 		WHERE google_id = $1
 	`
+
 	return repo.queryUser(ctx, query, googleID)
 }
 
-// GetByEmail implements repository.UserRepository
+// GetByEmail implements repository.UserRepository.
 func (repo *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
@@ -81,16 +85,18 @@ func (repo *UserRepository) GetByEmail(ctx context.Context, email string) (*doma
 		FROM users_view
 		WHERE email = $1
 	`
+
 	return repo.queryUser(ctx, query, email)
 }
 
-// Update implements repository.UserRepository
+// Update implements repository.UserRepository.
 func (repo *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	query := `
 		UPDATE users_view
 		SET name = $1, picture_url = $2, updated_at = $3, is_active = $4
 		WHERE id = $5
 	`
+
 	_, err := repo.db.ExecContext(ctx, query,
 		user.Name,
 		user.Picture,
@@ -101,10 +107,11 @@ func (repo *UserRepository) Update(ctx context.Context, user *domain.User) error
 	if err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
+
 	return nil
 }
 
-// List implements repository.UserRepository
+// List implements repository.UserRepository.
 func (repo *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
@@ -115,12 +122,14 @@ func (repo *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domai
 	if activeOnly {
 		query += " WHERE is_active = true"
 	}
+
 	query += " ORDER BY total_points DESC"
 
 	rows, err := repo.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
+
 	defer func() {
 		if cerr := rows.Close(); cerr != nil {
 			// Log the error but don't fail the request
@@ -129,17 +138,20 @@ func (repo *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domai
 	}()
 
 	var users []*domain.User
+
 	for rows.Next() {
 		user, err := repo.scanUser(rows)
 		if err != nil {
 			return nil, err
 		}
+
 		users = append(users, user)
 	}
+
 	return users, rows.Err()
 }
 
-// UpdateStats implements repository.UserRepository
+// UpdateStats implements repository.UserRepository.
 func (repo *UserRepository) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
 	query := `
 		UPDATE users_view
@@ -148,35 +160,42 @@ func (repo *UserRepository) UpdateStats(ctx context.Context, userID string, poin
 			correct_predictions = correct_predictions + $2
 		WHERE id = $3
 	`
+
 	correct := 0
 	if isCorrect {
 		correct = 1
 	}
+
 	_, err := repo.db.ExecContext(ctx, query, points, correct, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update user stats: %w", err)
 	}
+
 	return nil
 }
 
-// UpdateRank implements repository.UserRepository
+// UpdateRank implements repository.UserRepository.
 func (repo *UserRepository) UpdateRank(ctx context.Context, userID string, rank int) error {
 	query := `
 		UPDATE users_view
 		SET current_rank = $1
 		WHERE id = $2
 	`
+
 	_, err := repo.db.ExecContext(ctx, query, rank, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update user rank: %w", err)
 	}
+
 	return nil
 }
 
-// Helper function to scan a user from a row
+// Helper function to scan a user from a row.
 func (repo *UserRepository) scanUser(rows *sql.Rows) (*domain.User, error) {
 	var user domain.User
+
 	var stats domain.UserStats
+
 	err := rows.Scan(
 		&user.ID,
 		&user.GoogleID,
@@ -194,15 +213,20 @@ func (repo *UserRepository) scanUser(rows *sql.Rows) (*domain.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan user row: %w", err)
 	}
+
 	user.Stats = stats
+
 	return &user, nil
 }
 
-// Helper function to query a single user
+// Helper function to query a single user.
 func (repo *UserRepository) queryUser(ctx context.Context, query string, args ...interface{}) (*domain.User, error) {
 	row := repo.db.QueryRowContext(ctx, query, args...)
+
 	var user domain.User
+
 	var stats domain.UserStats
+
 	err := row.Scan(
 		&user.ID,
 		&user.GoogleID,
@@ -217,12 +241,15 @@ func (repo *UserRepository) queryUser(ctx context.Context, query string, args ..
 		&stats.TotalPredictions,
 		&stats.CurrentRank,
 	)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.New("user not found")
 	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	user.Stats = stats
+
 	return &user, nil
 }

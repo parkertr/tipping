@@ -14,7 +14,7 @@ import (
 	"github.com/parkertr/tipping/pkg/events"
 )
 
-// Mock implementations
+// Mock implementations.
 type mockUserRepo struct {
 	users map[string]*domain.User
 }
@@ -27,6 +27,7 @@ func newMockUserRepo() *mockUserRepo {
 
 func (mockUserRepo *mockUserRepo) Create(ctx context.Context, user *domain.User) error {
 	mockUserRepo.users[user.ID] = user
+
 	return nil
 }
 
@@ -34,6 +35,7 @@ func (mockUserRepo *mockUserRepo) GetByID(ctx context.Context, id string) (*doma
 	if user, ok := mockUserRepo.users[id]; ok {
 		return user, nil
 	}
+
 	return nil, errors.New("user not found")
 }
 
@@ -43,6 +45,7 @@ func (mockUserRepo *mockUserRepo) GetByGoogleID(ctx context.Context, googleID st
 			return user, nil
 		}
 	}
+
 	return nil, errors.New("user not found")
 }
 
@@ -52,11 +55,13 @@ func (mockUserRepo *mockUserRepo) GetByEmail(ctx context.Context, email string) 
 			return user, nil
 		}
 	}
+
 	return nil, errors.New("user not found")
 }
 
 func (mockUserRepo *mockUserRepo) Update(ctx context.Context, user *domain.User) error {
 	mockUserRepo.users[user.ID] = user
+
 	return nil
 }
 
@@ -65,22 +70,27 @@ func (mockUserRepo *mockUserRepo) List(ctx context.Context, activeOnly bool) ([]
 	for _, user := range mockUserRepo.users {
 		users = append(users, user)
 	}
+
 	return users, nil
 }
 
 func (mockUserRepo *mockUserRepo) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
 	if user, ok := mockUserRepo.users[userID]; ok {
 		user.Stats.TotalPoints += points
+
 		return nil
 	}
+
 	return errors.New("user not found")
 }
 
 func (mockUserRepo *mockUserRepo) UpdateRank(ctx context.Context, userID string, rank int) error {
 	if user, ok := mockUserRepo.users[userID]; ok {
 		user.Stats.CurrentRank = rank
+
 		return nil
 	}
+
 	return errors.New("user not found")
 }
 
@@ -96,6 +106,7 @@ func newMockMatchRepo() *mockMatchRepo {
 
 func (mockMatchRepo *mockMatchRepo) Create(ctx context.Context, match *domain.Match) error {
 	mockMatchRepo.matches[match.ID] = match
+
 	return nil
 }
 
@@ -103,6 +114,7 @@ func (mockMatchRepo *mockMatchRepo) GetByID(ctx context.Context, id string) (*do
 	if match, ok := mockMatchRepo.matches[id]; ok {
 		return match, nil
 	}
+
 	return nil, errors.New("match not found")
 }
 
@@ -111,11 +123,13 @@ func (mockMatchRepo *mockMatchRepo) List(ctx context.Context, filters repository
 	for _, match := range mockMatchRepo.matches {
 		matches = append(matches, match)
 	}
+
 	return matches, nil
 }
 
 func (mockMatchRepo *mockMatchRepo) Update(ctx context.Context, match *domain.Match) error {
 	mockMatchRepo.matches[match.ID] = match
+
 	return nil
 }
 
@@ -131,6 +145,7 @@ func newMockPredictionRepo() *mockPredictionRepo {
 
 func (m *mockPredictionRepo) Create(ctx context.Context, prediction *domain.Prediction) error {
 	m.predictions[prediction.ID] = prediction
+
 	return nil
 }
 
@@ -138,6 +153,7 @@ func (m *mockPredictionRepo) GetByID(ctx context.Context, id string) (*domain.Pr
 	if prediction, ok := m.predictions[id]; ok {
 		return prediction, nil
 	}
+
 	return nil, nil
 }
 
@@ -147,6 +163,7 @@ func (m *mockPredictionRepo) GetByUserAndMatch(ctx context.Context, userID, matc
 			return prediction, nil
 		}
 	}
+
 	return nil, nil
 }
 
@@ -157,6 +174,7 @@ func (m *mockPredictionRepo) ListByUser(ctx context.Context, userID string) ([]*
 			predictions = append(predictions, prediction)
 		}
 	}
+
 	return predictions, nil
 }
 
@@ -167,11 +185,13 @@ func (m *mockPredictionRepo) ListByMatch(ctx context.Context, matchID string) ([
 			predictions = append(predictions, prediction)
 		}
 	}
+
 	return predictions, nil
 }
 
 func (m *mockPredictionRepo) Update(ctx context.Context, prediction *domain.Prediction) error {
 	m.predictions[prediction.ID] = prediction
+
 	return nil
 }
 
@@ -187,6 +207,7 @@ func newMockEventStore() *mockEventStore {
 
 func (m *mockEventStore) SaveEvent(ctx context.Context, event *events.Event) error {
 	m.events[event.ID] = append(m.events[event.ID], event)
+
 	return nil
 }
 
@@ -196,6 +217,7 @@ func (m *mockEventStore) GetEvents(ctx context.Context, id string) ([]*events.Ev
 
 func (m *mockEventStore) GetEventsByType(ctx context.Context, eventType string) ([]*events.Event, error) {
 	var result []*events.Event
+
 	for _, events := range m.events {
 		for _, event := range events {
 			if event.Type == eventType {
@@ -203,11 +225,13 @@ func (m *mockEventStore) GetEventsByType(ctx context.Context, eventType string) 
 			}
 		}
 	}
+
 	return result, nil
 }
 
 func (m *mockEventStore) GetEventsByTimeRange(ctx context.Context, start, end time.Time) ([]*events.Event, error) {
 	var result []*events.Event
+
 	for _, events := range m.events {
 		for _, event := range events {
 			if event.Timestamp.After(start) && event.Timestamp.Before(end) {
@@ -215,11 +239,13 @@ func (m *mockEventStore) GetEventsByTimeRange(ctx context.Context, start, end ti
 			}
 		}
 	}
+
 	return result, nil
 }
 
 func TestNewServer(t *testing.T) {
 	t.Parallel()
+
 	userRepo := newMockUserRepo()
 	matchRepo := newMockMatchRepo()
 	predictionRepo := newMockPredictionRepo()
@@ -233,6 +259,7 @@ func TestNewServer(t *testing.T) {
 
 func TestServerRoutes(t *testing.T) {
 	t.Parallel()
+
 	userRepo := newMockUserRepo()
 	matchRepo := newMockMatchRepo()
 	predictionRepo := newMockPredictionRepo()
@@ -245,7 +272,7 @@ func TestServerRoutes(t *testing.T) {
 		Email:    "test@example.com",
 		Name:     "Test User",
 	}
-	userRepo.Create(context.Background(), user)
+	userRepo.Create(t.Context(), user)
 
 	match := &domain.Match{
 		ID:          "123",
@@ -256,7 +283,7 @@ func TestServerRoutes(t *testing.T) {
 		Status:      domain.MatchStatusScheduled,
 		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 	}
-	matchRepo.Create(context.Background(), match)
+	matchRepo.Create(t.Context(), match)
 
 	prediction := &domain.Prediction{
 		ID:        "123",
@@ -266,7 +293,7 @@ func TestServerRoutes(t *testing.T) {
 		AwayGoals: 1,
 		CreatedAt: time.Now(),
 	}
-	predictionRepo.Create(context.Background(), prediction)
+	predictionRepo.Create(t.Context(), prediction)
 
 	srv := server.NewServer(userRepo, matchRepo, predictionRepo, eventStore)
 
@@ -297,9 +324,11 @@ func TestServerRoutes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			rr := httptest.NewRecorder()
 			srv.Handler().ServeHTTP(rr, req)
+
 			if rr.Code != tc.code {
 				t.Errorf("Expected status code %d, got %d", tc.code, rr.Code)
 			}
@@ -309,6 +338,7 @@ func TestServerRoutes(t *testing.T) {
 
 func TestMiddleware(t *testing.T) {
 	t.Parallel()
+
 	userRepo := newMockUserRepo()
 	matchRepo := newMockMatchRepo()
 	predictionRepo := newMockPredictionRepo()
@@ -352,12 +382,15 @@ func TestMiddleware(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest("GET", tc.path, nil)
+
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
 			if tc.authHeader != "" {
 				req.Header.Set("Authorization", tc.authHeader)
 			}
+
 			rr := httptest.NewRecorder()
 			srv.Handler().ServeHTTP(rr, req)
+
 			if rr.Code != tc.expectedStatus {
 				t.Errorf("Expected status code %d, got %d", tc.expectedStatus, rr.Code)
 			}

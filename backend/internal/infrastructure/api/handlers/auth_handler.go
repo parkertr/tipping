@@ -17,7 +17,7 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// AuthHandler handles authentication-related requests
+// AuthHandler handles authentication-related requests.
 type AuthHandler struct {
 	userRepo     repository.UserRepository
 	tokenManager *auth.TokenManager
@@ -25,7 +25,7 @@ type AuthHandler struct {
 	eventStore   EventStore
 }
 
-// NewAuthHandler creates a new auth handler
+// NewAuthHandler creates a new auth handler.
 func NewAuthHandler(userRepo repository.UserRepository, tokenManager *auth.TokenManager, eventStore EventStore) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
@@ -44,7 +44,7 @@ func NewAuthHandler(userRepo repository.UserRepository, tokenManager *auth.Token
 	}
 }
 
-// RegisterRoutes registers the auth handler routes
+// RegisterRoutes registers the auth handler routes.
 func (h *AuthHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/google", h.GoogleLogin).Methods("GET")
 	r.HandleFunc("/google/callback", h.GoogleCallback).Methods("GET")
@@ -56,13 +56,13 @@ func (h *AuthHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/me/ranking", h.GetUserRanking).Methods("GET")
 }
 
-// GoogleLogin initiates the Google OAuth flow
+// GoogleLogin initiates the Google OAuth flow.
 func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	url := h.oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
-// getUserInfoFromGoogle retrieves user info from Google OAuth
+// getUserInfoFromGoogle retrieves user info from Google OAuth.
 func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
@@ -77,9 +77,11 @@ func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*
 
 	client := h.oauthConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
+
 	defer resp.Body.Close()
 
 	var userInfo struct {
@@ -97,7 +99,7 @@ func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*
 	return &userInfo, nil
 }
 
-// createOrUpdateUser creates a new user or updates an existing one
+// createOrUpdateUser creates a new user or updates an existing one.
 func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
@@ -153,23 +155,26 @@ func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
 	return user, nil
 }
 
-// GoogleCallback handles the Google OAuth callback
+// GoogleCallback handles the Google OAuth callback.
 func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
 		http.Error(w, "code not found", http.StatusBadRequest)
+
 		return
 	}
 
 	userInfo, err := h.getUserInfoFromGoogle(r.Context(), code)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
 	user, err := h.createOrUpdateUser(r.Context(), userInfo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -177,6 +182,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	tokenString, err := h.tokenManager.GenerateToken(user.ID)
 	if err != nil {
 		http.Error(w, "failed to generate token", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -187,11 +193,12 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// RefreshToken refreshes a JWT token
+// RefreshToken refreshes a JWT token.
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found in context", http.StatusUnauthorized)
+
 		return
 	}
 
@@ -201,12 +208,14 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
 	tokenString, err := h.tokenManager.RefreshToken(req.Token)
 	if err != nil {
 		http.Error(w, "failed to refresh token", http.StatusUnauthorized)
+
 		return
 	}
 
@@ -216,26 +225,30 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetProfile returns the current user's profile
+// GetProfile returns the current user's profile.
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found in context", http.StatusUnauthorized)
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(user); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
 
-// UpdateProfile updates the current user's profile
+// UpdateProfile updates the current user's profile.
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found in context", http.StatusUnauthorized)
+
 		return
 	}
 
@@ -246,6 +259,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+
 		return
 	}
 
@@ -260,21 +274,25 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
 		http.Error(w, "failed to save profile update event", http.StatusInternalServerError)
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(user); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
 
-// DeactivateProfile deactivates the current user's profile
+// DeactivateProfile deactivates the current user's profile.
 func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found in context", http.StatusUnauthorized)
+
 		return
 	}
 
@@ -287,21 +305,24 @@ func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) 
 
 	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
 		http.Error(w, "failed to save deactivation event", http.StatusInternalServerError)
+
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-// GetUserStats returns the current user's statistics
+// GetUserStats returns the current user's statistics.
 func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found in context", http.StatusUnauthorized)
+
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"totalPoints":        user.Stats.TotalPoints,
 		"correctPredictions": user.Stats.CorrectPredictions,
@@ -310,15 +331,17 @@ func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 		"successRate":        user.GetSuccessRate(),
 	}); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }
 
-// GetUserRanking returns the current user's ranking
+// GetUserRanking returns the current user's ranking.
 func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found in context", http.StatusUnauthorized)
+
 		return
 	}
 
@@ -326,11 +349,13 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userRepo.List(r.Context(), true)
 	if err != nil {
 		http.Error(w, "failed to get user rankings", http.StatusInternalServerError)
+
 		return
 	}
 
 	// Find user's position in the ranking
 	var position int
+
 	for i, u := range users {
 		if u.ID == user.ID {
 			position = i + 1
@@ -340,6 +365,7 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"position":    position,
 		"totalUsers":  len(users),
@@ -347,6 +373,7 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 		"totalPoints": user.Stats.TotalPoints,
 	}); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+
 		return
 	}
 }

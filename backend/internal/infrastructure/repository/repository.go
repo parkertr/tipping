@@ -8,12 +8,12 @@ import (
 	"github.com/parkertr/tipping/internal/domain"
 )
 
-// Common repository errors
+// Common repository errors.
 var (
 	ErrNotFound = errors.New("resource not found")
 )
 
-// MatchRepository defines the interface for match read model operations
+// MatchRepository defines the interface for match read model operations.
 type MatchRepository interface {
 	// Create creates a new match in the read model
 	Create(ctx context.Context, match *domain.Match) error
@@ -28,7 +28,7 @@ type MatchRepository interface {
 	List(ctx context.Context, filters MatchFilters) ([]*domain.Match, error)
 }
 
-// PredictionRepository defines the interface for prediction read model operations
+// PredictionRepository defines the interface for prediction read model operations.
 type PredictionRepository interface {
 	// Create creates a new prediction in the read model
 	Create(ctx context.Context, prediction *domain.Prediction) error
@@ -49,7 +49,7 @@ type PredictionRepository interface {
 	ListByMatch(ctx context.Context, matchID string) ([]*domain.Prediction, error)
 }
 
-// MatchFilters defines the available filters for listing matches
+// MatchFilters defines the available filters for listing matches.
 type MatchFilters struct {
 	Competition *string    // Filter by competition
 	StartDate   *time.Time // Filter by start date

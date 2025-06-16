@@ -15,25 +15,25 @@ var (
 	ErrExpiredToken = errors.New("token has expired")
 )
 
-// Claims represents the JWT claims
+// Claims represents the JWT claims.
 type Claims struct {
 	UserID string `json:"userId"`
 	jwt.RegisteredClaims
 }
 
-// TokenManager handles JWT token operations
+// TokenManager handles JWT token operations.
 type TokenManager struct {
 	secretKey []byte
 }
 
-// NewTokenManager creates a new token manager
+// NewTokenManager creates a new token manager.
 func NewTokenManager() *TokenManager {
 	return &TokenManager{
 		secretKey: []byte(utils.GetEnvOrDefault("JWT_SECRET", "your-secret-key")),
 	}
 }
 
-// GenerateToken generates a new JWT token for a user
+// GenerateToken generates a new JWT token for a user.
 func (m *TokenManager) GenerateToken(userID string) (string, error) {
 	claims := &Claims{
 		UserID: userID,
@@ -43,16 +43,17 @@ func (m *TokenManager) GenerateToken(userID string) (string, error) {
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "tipping-app",
 			Subject:   userID,
-			ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+			ID:        strconv.FormatInt(time.Now().UnixNano(), 10),
 			Audience:  []string{"tipping-app"},
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	return token.SignedString(m.secretKey)
 }
 
-// ValidateToken validates a JWT token and returns the claims
+// ValidateToken validates a JWT token and returns the claims.
 func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(_ *jwt.Token) (interface{}, error) {
 		return m.secretKey, nil
@@ -62,6 +63,7 @@ func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredToken
 		}
+
 		return nil, ErrInvalidToken
 	}
 
@@ -72,7 +74,7 @@ func (m *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 	return nil, ErrInvalidToken
 }
 
-// RefreshToken generates a new token with extended expiration
+// RefreshToken generates a new token with extended expiration.
 func (m *TokenManager) RefreshToken(tokenString string) (string, error) {
 	claims, err := m.ValidateToken(tokenString)
 	if err != nil {

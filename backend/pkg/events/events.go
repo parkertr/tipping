@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Event represents a domain event
+// Event represents a domain event.
 type Event struct {
 	ID        string      `json:"id"`
 	Type      string      `json:"type"`
@@ -13,7 +13,7 @@ type Event struct {
 	Version   int         `json:"version"`
 }
 
-// MatchCreated represents a match creation event
+// MatchCreated represents a match creation event.
 type MatchCreated struct {
 	ID          string    `json:"id"`
 	HomeTeam    string    `json:"homeTeam"`
@@ -22,7 +22,7 @@ type MatchCreated struct {
 	Competition string    `json:"competition"`
 }
 
-// MatchScoreUpdated represents a match score update event
+// MatchScoreUpdated represents a match score update event.
 type MatchScoreUpdated struct {
 	MatchID   string    `json:"matchId"`
 	HomeGoals int       `json:"homeGoals"`
@@ -30,14 +30,14 @@ type MatchScoreUpdated struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// MatchStatusChanged represents a match status change event
+// MatchStatusChanged represents a match status change event.
 type MatchStatusChanged struct {
 	MatchID   string    `json:"matchId"`
 	Status    string    `json:"status"`
 	ChangedAt time.Time `json:"changedAt"`
 }
 
-// PredictionMade represents a prediction creation event
+// PredictionMade represents a prediction creation event.
 type PredictionMade struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"userId"`
@@ -47,7 +47,7 @@ type PredictionMade struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// PointsAwarded represents points being awarded for a prediction
+// PointsAwarded represents points being awarded for a prediction.
 type PointsAwarded struct {
 	UserID    string    `json:"userId"`
 	MatchID   string    `json:"matchId"`
@@ -55,7 +55,7 @@ type PointsAwarded struct {
 	AwardedAt time.Time `json:"awardedAt"`
 }
 
-// UserRegistered represents a new user registration event
+// UserRegistered represents a new user registration event.
 type UserRegistered struct {
 	ID        string    `json:"id"`
 	GoogleID  string    `json:"googleId"`
@@ -65,7 +65,7 @@ type UserRegistered struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// UserProfileUpdated represents a user profile update event
+// UserProfileUpdated represents a user profile update event.
 type UserProfileUpdated struct {
 	UserID    string    `json:"userId"`
 	Name      string    `json:"name"`
@@ -73,13 +73,13 @@ type UserProfileUpdated struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// UserDeactivated represents a user deactivation event
+// UserDeactivated represents a user deactivation event.
 type UserDeactivated struct {
 	UserID    string    `json:"userId"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// NewEvent creates a new event instance
+// NewEvent creates a new event instance.
 func NewEvent(eventType string, data interface{}) *Event {
 	return &Event{
 		ID:        generateEventID(),
@@ -90,7 +90,7 @@ func NewEvent(eventType string, data interface{}) *Event {
 	}
 }
 
-// generateEventID generates a unique event ID
+// generateEventID generates a unique event ID.
 func generateEventID() string {
 	return time.Now().Format("20060102150405.000000000")
 }

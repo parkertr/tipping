@@ -6,16 +6,17 @@ import (
 	"time"
 )
 
-// loggingMiddleware logs HTTP requests
+// loggingMiddleware logs HTTP requests.
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+
 		next.ServeHTTP(w, r)
 		log.Printf("%s %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
 }
 
-// corsMiddleware handles CORS headers
+// corsMiddleware handles CORS headers.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -24,6 +25,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
+
 			return
 		}
 
