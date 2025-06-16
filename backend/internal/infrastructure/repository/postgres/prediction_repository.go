@@ -118,7 +118,11 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("prediction not found for user %s and match %s", userID, matchID)
+		return nil, fmt.Errorf(
+			"prediction not found for user %s and match %s",
+			userID,
+			matchID,
+		)
 	}
 
 	if err != nil {

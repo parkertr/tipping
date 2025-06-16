@@ -1,6 +1,7 @@
-# Bugs Task List
+# BUGS TASK LIST
 
 ## Rules
+- Always ask the user for confirmation before running any git commands (add, commit, push, etc.).
 - An item in this list is only considered fixed once the corresponding test passes.
 - After each successful bug fix:
   1. Run `git add .` to stage all changed files

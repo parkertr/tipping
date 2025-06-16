@@ -1,10 +1,19 @@
 # Linter Task List
 
+## Rules
+- Always ask the user for confirmation before running any git commands (add, commit, push, etc.).
+- After each successful linter fix, run:
+  1. `git add .` to stage all changed files
+  2. `git commit --no-verify -m "Fix: <brief description of the fix>"` to commit the changes
+  3. Use `--no-verify` while there are linter issues to fix
+
 ## High-priority linter errors (examples, not exhaustive):
 
-### 1. Line length exceeds 120 characters (lll)
-- [ ] `internal/infrastructure/api/middleware/auth.go:23`
-- [ ] `internal/infrastructure/repository/postgres/prediction_repository.go:103`
+### 1. Line length exceeds 120 characters (lll) ✅ FIXED
+- [x] `internal/infrastructure/api/middleware/auth.go:23`
+  - Split AuthMiddleware function signature into multiple lines
+- [x] `internal/infrastructure/repository/postgres/prediction_repository.go:103`
+  - Split long error message in GetByUserAndMatch into multiple lines
 
 ### 2. Magic numbers (mnd)
 - [ ] `cmd/api/main.go:51,52,53,54,55,73`
