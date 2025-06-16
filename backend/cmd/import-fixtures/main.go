@@ -47,96 +47,99 @@ func main() {
 	fmt.Printf("Found %d fixtures to import\n", len(fixtures))
 
 	if *dryRun {
-		fmt.Println("\nDry run mode - showing what would be imported:")
-
-		for _, fixture := range fixtures {
-			fmt.Printf("- %s vs %s (%s) on %s\n",
-				fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
-		}
-
+		printDryRun(fixtures)
 		return
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", *dbURL)
+	db, eventStore, eventHandler := setupDatabase(*dbURL)
+	defer db.Close()
+
+	importFixtures(context.Background(), fixtures, eventStore, eventHandler)
+}
+
+func printDryRun(fixtures []MatchFixture) {
+	fmt.Println("\nDry run mode - showing what would be imported:")
+	for _, fixture := range fixtures {
+		fmt.Printf("- %s vs %s (%s) on %s\n",
+			fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
+	}
+}
+
+func setupDatabase(dbURL string) (*sql.DB, *eventstore.PostgresEventStore, *eventhandlers.MatchEventHandler) {
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("Error closing database: %v", err)
-		}
-	}()
-
-	// Test database connection
 	if err := db.Ping(); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// Create event store
 	eventStore, err := eventstore.NewPostgresEventStore(db)
 	if err != nil {
 		log.Fatalf("Failed to create event store: %v", err)
 	}
 
-	// Create repositories and event handler
 	matchRepo := postgres.NewMatchRepository(db)
 	eventHandler := eventhandlers.NewMatchEventHandler(matchRepo)
 
-	// Import fixtures
-	ctx := context.Background()
+	return db, eventStore, eventHandler
+}
+
+func importFixtures(ctx context.Context, fixtures []MatchFixture, eventStore *eventstore.PostgresEventStore, eventHandler *eventhandlers.MatchEventHandler) {
 	imported := 0
 	skipped := 0
 
 	for _, fixture := range fixtures {
-		// Check if match already exists
-		existingEvents, err := eventStore.GetEvents(ctx, fixture.ID)
-		if err != nil {
-			log.Printf("Error checking for existing match %s: %v", fixture.ID, err)
-
-			continue
-		}
-
-		if len(existingEvents) > 0 {
+		if shouldSkipFixture(ctx, fixture, eventStore) {
 			fmt.Printf("Skipping %s vs %s - already exists\n", fixture.HomeTeam, fixture.AwayTeam)
-
 			skipped++
-
 			continue
 		}
 
-		// Create MatchCreated event
-		matchCreated := events.MatchCreated{
-			ID:          fixture.ID,
-			HomeTeam:    fixture.HomeTeam,
-			AwayTeam:    fixture.AwayTeam,
-			Date:        fixture.Date,
-			Competition: fixture.Competition,
-		}
-
-		event := events.NewEvent("MatchCreated", matchCreated)
-
-		// Save event
-		if err := eventStore.SaveEvent(ctx, event); err != nil {
+		if err := importFixture(ctx, fixture, eventStore, eventHandler); err != nil {
 			log.Printf("Failed to import match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
-
 			continue
-		}
-
-		// Process event through handler to update read model
-		if err := eventHandler.HandleEvent(ctx, event); err != nil {
-			log.Printf("Failed to process event for match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
-			// Continue anyway since the event is saved
 		}
 
 		fmt.Printf("Imported: %s vs %s (%s) on %s\n",
 			fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
-
 		imported++
 	}
 
 	fmt.Printf("\nImport complete: %d imported, %d skipped\n", imported, skipped)
+}
+
+func shouldSkipFixture(ctx context.Context, fixture MatchFixture, eventStore *eventstore.PostgresEventStore) bool {
+	existingEvents, err := eventStore.GetEvents(ctx, fixture.ID)
+	if err != nil {
+		log.Printf("Error checking for existing match %s: %v", fixture.ID, err)
+		return true
+	}
+	return len(existingEvents) > 0
+}
+
+func importFixture(ctx context.Context, fixture MatchFixture, eventStore *eventstore.PostgresEventStore, eventHandler *eventhandlers.MatchEventHandler) error {
+	matchCreated := events.MatchCreated{
+		ID:          fixture.ID,
+		HomeTeam:    fixture.HomeTeam,
+		AwayTeam:    fixture.AwayTeam,
+		Date:        fixture.Date,
+		Competition: fixture.Competition,
+	}
+
+	event := events.NewEvent("MatchCreated", matchCreated)
+
+	if err := eventStore.SaveEvent(ctx, event); err != nil {
+		return fmt.Errorf("failed to save event: %w", err)
+	}
+
+	if err := eventHandler.HandleEvent(ctx, event); err != nil {
+		log.Printf("Failed to process event for match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
+		// Continue anyway since the event is saved
+	}
+
+	return nil
 }
 
 // readFixtures reads and parses the fixtures JSON file.

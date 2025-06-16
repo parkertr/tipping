@@ -197,6 +197,37 @@ func (store *PostgresEventStore) GetEventsByType(ctx context.Context, eventType 
 	return result, nil
 }
 
+// unmarshalEventData unmarshals event data based on the event type.
+func (store *PostgresEventStore) unmarshalEventData(event *events.Event, data []byte) error {
+	switch event.Type {
+	case "MatchCreated":
+		var matchCreated events.MatchCreated
+		if err := json.Unmarshal(data, &matchCreated); err != nil {
+			return fmt.Errorf("failed to unmarshal MatchCreated for event ID %s: %w", event.ID, err)
+		}
+		event.Data = matchCreated
+	case "MatchScoreUpdated":
+		var scoreUpdated events.MatchScoreUpdated
+		if err := json.Unmarshal(data, &scoreUpdated); err != nil {
+			return fmt.Errorf("failed to unmarshal MatchScoreUpdated for event ID %s: %w", event.ID, err)
+		}
+		event.Data = scoreUpdated
+	case "MatchStatusChanged":
+		var statusChanged events.MatchStatusChanged
+		if err := json.Unmarshal(data, &statusChanged); err != nil {
+			return fmt.Errorf("failed to unmarshal MatchStatusChanged for event ID %s: %w", event.ID, err)
+		}
+		event.Data = statusChanged
+	case "PredictionMade":
+		var predictionMade events.PredictionMade
+		if err := json.Unmarshal(data, &predictionMade); err != nil {
+			return fmt.Errorf("failed to unmarshal PredictionMade for event ID %s: %w", event.ID, err)
+		}
+		event.Data = predictionMade
+	}
+	return nil
+}
+
 // GetEventsByTimeRange retrieves events within a time range.
 func (store *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, end time.Time) ([]*events.Event, error) {
 	query := `
@@ -221,42 +252,13 @@ func (store *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start
 
 	for rows.Next() {
 		var event events.Event
-
 		var data []byte
 		if err := rows.Scan(&event.ID, &event.Type, &data, &event.Timestamp, &event.Version); err != nil {
 			return nil, fmt.Errorf("failed to scan event for time range %s to %s: %w", start.Format(time.RFC3339), end.Format(time.RFC3339), err)
 		}
 
-		// Unmarshal the event data based on the event type
-		switch event.Type {
-		case "MatchCreated":
-			var matchCreated events.MatchCreated
-			if err := json.Unmarshal(data, &matchCreated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchCreated for event ID %s: %w", event.ID, err)
-			}
-
-			event.Data = matchCreated
-		case "MatchScoreUpdated":
-			var scoreUpdated events.MatchScoreUpdated
-			if err := json.Unmarshal(data, &scoreUpdated); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchScoreUpdated for event ID %s: %w", event.ID, err)
-			}
-
-			event.Data = scoreUpdated
-		case "MatchStatusChanged":
-			var statusChanged events.MatchStatusChanged
-			if err := json.Unmarshal(data, &statusChanged); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal MatchStatusChanged for event ID %s: %w", event.ID, err)
-			}
-
-			event.Data = statusChanged
-		case "PredictionMade":
-			var predictionMade events.PredictionMade
-			if err := json.Unmarshal(data, &predictionMade); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal PredictionMade for event ID %s: %w", event.ID, err)
-			}
-
-			event.Data = predictionMade
+		if err := store.unmarshalEventData(&event, data); err != nil {
+			return nil, err
 		}
 
 		result = append(result, &event)

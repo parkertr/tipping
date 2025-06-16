@@ -145,11 +145,10 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	return match, nil
 }
 
-func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+// buildMatchQuery builds the SQL query and arguments for listing matches with filters.
+func (r *MatchRepository) buildMatchQuery(filters repository.MatchFilters) (string, []interface{}) {
 	var conditions []string
-
 	var args []interface{}
-
 	argPos := 1
 
 	if filters.Competition != nil {
@@ -186,6 +185,50 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 
 	query += " ORDER BY match_date ASC"
 
+	return query, args
+}
+
+// scanMatchRow scans a single match row from the database.
+func (r *MatchRepository) scanMatchRow(rows *sql.Rows) (*domain.Match, error) {
+	var homeGoals, awayGoals sql.NullInt32
+
+	match := &domain.Match{
+		ID:          "",
+		HomeTeam:    "",
+		AwayTeam:    "",
+		Date:        time.Time{},
+		Competition: "",
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
+
+	err := rows.Scan(
+		&match.ID,
+		&match.HomeTeam,
+		&match.AwayTeam,
+		&match.Date,
+		&match.Competition,
+		&match.Status,
+		&homeGoals,
+		&awayGoals,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan match row: %w", err)
+	}
+
+	if homeGoals.Valid && awayGoals.Valid {
+		match.Score = &domain.Score{
+			HomeGoals: int(homeGoals.Int32),
+			AwayGoals: int(awayGoals.Int32),
+		}
+	}
+
+	return match, nil
+}
+
+func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+	query, args := r.buildMatchQuery(filters)
+
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query matches with filters: %w", err)
@@ -200,39 +243,10 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	var matches []*domain.Match
 
 	for rows.Next() {
-		var homeGoals, awayGoals sql.NullInt32
-
-		match := &domain.Match{
-			ID:          "",
-			HomeTeam:    "",
-			AwayTeam:    "",
-			Date:        time.Time{},
-			Competition: "",
-			Status:      domain.MatchStatusScheduled,
-			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
-		}
-
-		err := rows.Scan(
-			&match.ID,
-			&match.HomeTeam,
-			&match.AwayTeam,
-			&match.Date,
-			&match.Competition,
-			&match.Status,
-			&homeGoals,
-			&awayGoals,
-		)
+		match, err := r.scanMatchRow(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan match row: %w", err)
+			return nil, err
 		}
-
-		if homeGoals.Valid && awayGoals.Valid {
-			match.Score = &domain.Score{
-				HomeGoals: int(homeGoals.Int32),
-				AwayGoals: int(awayGoals.Int32),
-			}
-		}
-
 		matches = append(matches, match)
 	}
 
