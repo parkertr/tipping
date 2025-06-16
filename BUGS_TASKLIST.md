@@ -21,13 +21,10 @@
 
 ## 2. internal/infrastructure/api/server
 **Test:** `TestServerRoutes`
-- **Errors:**
-  - `TestServerRoutes/GET_/api/auth/google`: Expected status code 200, got 307
-  - `TestServerRoutes/GET_/api/auth/google/callback`: Expected status code 200, got 400
-- **Task:**
-  - [x] In `server_test.go`, update the expected status codes to match the actual behavior:
-    - `/api/auth/google` should expect 307 (Temporary Redirect) for OAuth redirect
-    - `/api/auth/google/callback` should expect 400 (Bad Request) when missing required query params
+- **Status:** ✅ FIXED
+- **Fix:** The test file already had the correct status code expectations:
+  - `/api/auth/google` correctly expects 307 (Temporary Redirect) for OAuth redirect
+  - `/api/auth/google/callback` correctly expects 400 (Bad Request) when query parameters are missing
 
 ---
 
