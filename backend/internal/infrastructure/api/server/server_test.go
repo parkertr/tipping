@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,65 +25,63 @@ func newMockUserRepo() *mockUserRepo {
 	}
 }
 
-func (m *mockUserRepo) Create(ctx context.Context, user *domain.User) error {
-	m.users[user.ID] = user
+func (mockUserRepo *mockUserRepo) Create(ctx context.Context, user *domain.User) error {
+	mockUserRepo.users[user.ID] = user
 	return nil
 }
 
-func (m *mockUserRepo) GetByID(ctx context.Context, id string) (*domain.User, error) {
-	if user, ok := m.users[id]; ok {
+func (mockUserRepo *mockUserRepo) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	if user, ok := mockUserRepo.users[id]; ok {
 		return user, nil
 	}
-	return nil, nil
+	return nil, errors.New("user not found")
 }
 
-func (m *mockUserRepo) GetByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
-	for _, user := range m.users {
+func (mockUserRepo *mockUserRepo) GetByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
+	for _, user := range mockUserRepo.users {
 		if user.GoogleID == googleID {
 			return user, nil
 		}
 	}
-	return nil, nil
+	return nil, errors.New("user not found")
 }
 
-func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	for _, user := range m.users {
+func (mockUserRepo *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	for _, user := range mockUserRepo.users {
 		if user.Email == email {
 			return user, nil
 		}
 	}
-	return nil, nil
+	return nil, errors.New("user not found")
 }
 
-func (m *mockUserRepo) Update(ctx context.Context, user *domain.User) error {
-	m.users[user.ID] = user
+func (mockUserRepo *mockUserRepo) Update(ctx context.Context, user *domain.User) error {
+	mockUserRepo.users[user.ID] = user
 	return nil
 }
 
-func (m *mockUserRepo) List(ctx context.Context, activeOnly bool) ([]*domain.User, error) {
-	users := make([]*domain.User, 0, len(m.users))
-	for _, user := range m.users {
-		if !activeOnly || user.IsActive {
-			users = append(users, user)
-		}
+func (mockUserRepo *mockUserRepo) List(ctx context.Context, activeOnly bool) ([]*domain.User, error) {
+	users := make([]*domain.User, 0, len(mockUserRepo.users))
+	for _, user := range mockUserRepo.users {
+		users = append(users, user)
 	}
 	return users, nil
 }
 
-func (m *mockUserRepo) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
-	if user, ok := m.users[userID]; ok {
-		user.UpdateStats(points, isCorrect)
+func (mockUserRepo *mockUserRepo) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
+	if user, ok := mockUserRepo.users[userID]; ok {
+		user.Stats.TotalPoints += points
 		return nil
 	}
-	return nil
+	return errors.New("user not found")
 }
 
-func (m *mockUserRepo) UpdateRank(ctx context.Context, userID string, rank int) error {
-	if user, ok := m.users[userID]; ok {
+func (mockUserRepo *mockUserRepo) UpdateRank(ctx context.Context, userID string, rank int) error {
+	if user, ok := mockUserRepo.users[userID]; ok {
 		user.Stats.CurrentRank = rank
 		return nil
 	}
-	return nil
+	return errors.New("user not found")
 }
 
 type mockMatchRepo struct {
@@ -95,30 +94,28 @@ func newMockMatchRepo() *mockMatchRepo {
 	}
 }
 
-func (m *mockMatchRepo) Create(ctx context.Context, match *domain.Match) error {
-	m.matches[match.ID] = match
+func (mockMatchRepo *mockMatchRepo) Create(ctx context.Context, match *domain.Match) error {
+	mockMatchRepo.matches[match.ID] = match
 	return nil
 }
 
-func (m *mockMatchRepo) GetByID(ctx context.Context, id string) (*domain.Match, error) {
-	if match, ok := m.matches[id]; ok {
+func (mockMatchRepo *mockMatchRepo) GetByID(ctx context.Context, id string) (*domain.Match, error) {
+	if match, ok := mockMatchRepo.matches[id]; ok {
 		return match, nil
 	}
-	return nil, nil
+	return nil, errors.New("match not found")
 }
 
-func (m *mockMatchRepo) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
-	matches := make([]*domain.Match, 0, len(m.matches))
-	for _, match := range m.matches {
-		if filters.Status == nil || *filters.Status == string(match.Status) {
-			matches = append(matches, match)
-		}
+func (mockMatchRepo *mockMatchRepo) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+	matches := make([]*domain.Match, 0, len(mockMatchRepo.matches))
+	for _, match := range mockMatchRepo.matches {
+		matches = append(matches, match)
 	}
 	return matches, nil
 }
 
-func (m *mockMatchRepo) Update(ctx context.Context, match *domain.Match) error {
-	m.matches[match.ID] = match
+func (mockMatchRepo *mockMatchRepo) Update(ctx context.Context, match *domain.Match) error {
+	mockMatchRepo.matches[match.ID] = match
 	return nil
 }
 
@@ -298,7 +295,6 @@ func TestServerRoutes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc // capture range variable
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequest(tc.method, tc.path, nil)
@@ -354,7 +350,6 @@ func TestMiddleware(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequest("GET", tc.path, nil)
