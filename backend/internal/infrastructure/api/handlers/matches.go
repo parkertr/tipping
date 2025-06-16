@@ -72,7 +72,7 @@ func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "Failed to create match", http.StatusInternalServerError)
+		http.Error(w, "failed to create match", http.StatusInternalServerError)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *MatchHandler) UpdateMatchScore(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (h *MatchHandler) UpdateMatchScore(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "Failed to update match score", http.StatusInternalServerError)
+		http.Error(w, "failed to update match score", http.StatusInternalServerError)
 		return
 	}
 
@@ -236,10 +236,10 @@ func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
 	match, err = h.rebuildMatchFromEvents(r.Context(), matchID)
 	if err != nil {
 		if err == repository.ErrNotFound {
-			http.Error(w, "Match not found", http.StatusNotFound)
+			http.Error(w, "match not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Failed to retrieve match", http.StatusInternalServerError)
+		http.Error(w, "failed to retrieve match", http.StatusInternalServerError)
 		return
 	}
 
@@ -264,7 +264,7 @@ func (h *MatchHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 		Status:      nil,
 	})
 	if err != nil {
-		http.Error(w, "Failed to retrieve matches", http.StatusInternalServerError)
+		http.Error(w, "failed to retrieve matches", http.StatusInternalServerError)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (h *MatchHandler) ListUpcomingMatches(w http.ResponseWriter, r *http.Reques
 		EndDate:     nil,
 	})
 	if err != nil {
-		http.Error(w, "Failed to retrieve upcoming matches", http.StatusInternalServerError)
+		http.Error(w, "failed to retrieve upcoming matches", http.StatusInternalServerError)
 		return
 	}
 

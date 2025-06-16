@@ -48,7 +48,7 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 			// Get token from Authorization header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				http.Error(w, "authorization header required", http.StatusUnauthorized)
 				return
 			}
 
@@ -61,19 +61,19 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 			// Validate token
 			claims, err := tokenManager.ValidateToken(tokenString)
 			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			// Get user from repository
 			user, err := userRepo.GetByID(r.Context(), claims.Subject)
 			if err != nil {
-				http.Error(w, "User not found", http.StatusUnauthorized)
+				http.Error(w, "user not found", http.StatusUnauthorized)
 				return
 			}
 
 			if user == nil {
-				http.Error(w, "User not found", http.StatusUnauthorized)
+				http.Error(w, "user not found", http.StatusUnauthorized)
 				return
 			}
 

@@ -20,32 +20,32 @@ func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRep
 			// Get the Authorization header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Authorization header is required", http.StatusUnauthorized)
+				http.Error(w, "authorization header is required", http.StatusUnauthorized)
 				return
 			}
 
 			// Check if the header has the Bearer prefix
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "Authorization header format must be Bearer {token}", http.StatusUnauthorized)
+				http.Error(w, "authorization header format must be Bearer {token}", http.StatusUnauthorized)
 				return
 			}
 
 			// Validate the token
 			claims, err := tokenManager.ValidateToken(parts[1])
 			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			// Get the user from the repository
 			user, err := userRepo.GetByID(r.Context(), claims.UserID)
 			if err != nil {
-				http.Error(w, "Failed to get user", http.StatusInternalServerError)
+				http.Error(w, "failed to get user", http.StatusInternalServerError)
 				return
 			}
 			if user == nil {
-				http.Error(w, "User not found", http.StatusUnauthorized)
+				http.Error(w, "user not found", http.StatusUnauthorized)
 				return
 			}
 
@@ -69,7 +69,7 @@ func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := GetUserFromContext(r.Context())
 		if user == nil {
-			http.Error(w, "Authentication required", http.StatusUnauthorized)
+			http.Error(w, "authentication required", http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)

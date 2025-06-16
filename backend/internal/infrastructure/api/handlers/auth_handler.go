@@ -157,7 +157,7 @@ func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
 func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		http.Error(w, "Code not found", http.StatusBadRequest)
+		http.Error(w, "code not found", http.StatusBadRequest)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	// Generate JWT token
 	tokenString, err := h.tokenManager.GenerateToken(user.ID)
 	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		http.Error(w, "user not found in context", http.StatusUnauthorized)
 		return
 	}
 
@@ -200,13 +200,13 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	tokenString, err := h.tokenManager.RefreshToken(req.Token)
 	if err != nil {
-		http.Error(w, "Failed to refresh token", http.StatusUnauthorized)
+		http.Error(w, "failed to refresh token", http.StatusUnauthorized)
 		return
 	}
 
@@ -220,13 +220,13 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		http.Error(w, "user not found in context", http.StatusUnauthorized)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(user); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }
@@ -235,7 +235,7 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		http.Error(w, "user not found in context", http.StatusUnauthorized)
 		return
 	}
 
@@ -245,7 +245,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -259,13 +259,13 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "Failed to save profile update event", http.StatusInternalServerError)
+		http.Error(w, "failed to save profile update event", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(user); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }
@@ -274,7 +274,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		http.Error(w, "user not found in context", http.StatusUnauthorized)
 		return
 	}
 
@@ -286,7 +286,7 @@ func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "Failed to save deactivation event", http.StatusInternalServerError)
+		http.Error(w, "failed to save deactivation event", http.StatusInternalServerError)
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) 
 func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		http.Error(w, "user not found in context", http.StatusUnauthorized)
 		return
 	}
 
@@ -309,7 +309,7 @@ func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 		"currentRank":        user.Stats.CurrentRank,
 		"successRate":        user.GetSuccessRate(),
 	}); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }
@@ -318,14 +318,14 @@ func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		http.Error(w, "user not found in context", http.StatusUnauthorized)
 		return
 	}
 
 	// Get all active users sorted by points
 	users, err := h.userRepo.List(r.Context(), true)
 	if err != nil {
-		http.Error(w, "Failed to get user rankings", http.StatusInternalServerError)
+		http.Error(w, "failed to get user rankings", http.StatusInternalServerError)
 		return
 	}
 
@@ -346,7 +346,7 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 		"currentRank": user.Stats.CurrentRank,
 		"totalPoints": user.Stats.TotalPoints,
 	}); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }

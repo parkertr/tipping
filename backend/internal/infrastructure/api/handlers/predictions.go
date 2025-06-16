@@ -140,9 +140,9 @@ func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Requ
 
 	// Debug logging
 	fmt.Printf("Match status after events: %s\n", match.Status)
-	if match.IsFinished() {
+	if match.Status == domain.MatchStatusFinished {
 		fmt.Printf("Match is finished, returning 400\n")
-		http.Error(w, "Cannot create prediction for finished match", http.StatusBadRequest)
+		http.Error(w, "cannot create prediction for finished match", http.StatusBadRequest)
 		return
 	}
 
@@ -270,7 +270,7 @@ func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *
 
 	events, err := h.eventStore.GetEventsByType(r.Context(), "PredictionMade")
 	if err != nil {
-		http.Error(w, "Failed to retrieve predictions", http.StatusInternalServerError)
+		http.Error(w, "failed to retrieve predictions", http.StatusInternalServerError)
 		return
 	}
 
@@ -290,7 +290,7 @@ func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *
 	}
 
 	// No prediction found
-	http.Error(w, "Prediction not found", http.StatusNotFound)
+	http.Error(w, "prediction not found", http.StatusNotFound)
 }
 
 // RegisterRoutes registers the prediction handler routes
