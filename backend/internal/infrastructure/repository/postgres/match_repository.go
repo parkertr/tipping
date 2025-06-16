@@ -127,11 +127,11 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("match not found: %w", err)
+		return nil, fmt.Errorf("match not found with ID %s: %w", id, err)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get match: %w", err)
+		return nil, fmt.Errorf("failed to scan match with ID %s: %w", id, err)
 	}
 
 	if homeGoals.Valid && awayGoals.Valid {
@@ -185,7 +185,7 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list matches: %w", err)
+		return nil, fmt.Errorf("failed to query matches with filters: %w", err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -216,7 +216,7 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 			&awayGoals,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan match: %w", err)
+			return nil, fmt.Errorf("failed to scan match row: %w", err)
 		}
 
 		if homeGoals.Valid && awayGoals.Valid {
@@ -230,7 +230,7 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating matches: %w", err)
+		return nil, fmt.Errorf("error iterating match rows: %w", err)
 	}
 
 	return matches, nil
