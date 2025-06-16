@@ -31,18 +31,18 @@ func NewPrediction(id, userID, matchID string, homeGoals, awayGoals int) *Predic
 }
 
 // CalculatePoints calculates the points awarded for this prediction
-func (p *Prediction) CalculatePoints(match *Match) int {
+func (prediction *Prediction) CalculatePoints(match *Match) int {
 	if match.Score == nil {
 		return constants.NoPoints
 	}
 
 	// Exact score prediction
-	if p.HomeGoals == match.Score.HomeGoals && p.AwayGoals == match.Score.AwayGoals {
+	if prediction.HomeGoals == match.Score.HomeGoals && prediction.AwayGoals == match.Score.AwayGoals {
 		return constants.ExactScorePoints
 	}
 
 	// Correct result prediction
-	predictionResult := p.GetResult()
+	predictionResult := prediction.GetResult()
 	matchResult := match.GetResult()
 	if predictionResult == matchResult {
 		return constants.CorrectResultPoints
@@ -52,11 +52,11 @@ func (p *Prediction) CalculatePoints(match *Match) int {
 }
 
 // GetResult returns the predicted result (home win, away win, or draw)
-func (p *Prediction) GetResult() string {
-	if p.HomeGoals > p.AwayGoals {
+func (prediction *Prediction) GetResult() string {
+	if prediction.HomeGoals > prediction.AwayGoals {
 		return "home"
 	}
-	if p.AwayGoals > p.HomeGoals {
+	if prediction.AwayGoals > prediction.HomeGoals {
 		return "away"
 	}
 

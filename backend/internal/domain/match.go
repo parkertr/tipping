@@ -45,32 +45,32 @@ func NewMatch(id, homeTeam, awayTeam string, date time.Time, competition string)
 }
 
 // UpdateScore updates the match score
-func (m *Match) UpdateScore(homeGoals, awayGoals int) {
-	m.Score = &Score{
+func (match *Match) UpdateScore(homeGoals, awayGoals int) {
+	match.Score = &Score{
 		HomeGoals: homeGoals,
 		AwayGoals: awayGoals,
 	}
 }
 
 // IsFinished returns true if the match is finished
-func (m *Match) IsFinished() bool {
-	return m.Status == MatchStatusFinished
+func (match *Match) IsFinished() bool {
+	return match.Status == MatchStatusFinished
 }
 
 // IsLive returns true if the match is currently live
-func (m *Match) IsLive() bool {
-	return m.Status == MatchStatusLive
+func (match *Match) IsLive() bool {
+	return match.Status == MatchStatusLive
 }
 
 // GetResult returns the match result (home win, away win, or draw)
-func (m *Match) GetResult() string {
-	if m.Score == nil {
+func (match *Match) GetResult() string {
+	if match.Score == nil {
 		return ""
 	}
-	if m.Score.HomeGoals > m.Score.AwayGoals {
+	if match.Score.HomeGoals > match.Score.AwayGoals {
 		return "home"
 	}
-	if m.Score.AwayGoals > m.Score.HomeGoals {
+	if match.Score.AwayGoals > match.Score.HomeGoals {
 		return "away"
 	}
 	return "draw"

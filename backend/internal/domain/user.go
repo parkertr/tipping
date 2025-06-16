@@ -51,37 +51,37 @@ func NewUser(googleID, email, name, picture string) *User {
 }
 
 // UpdateProfile updates the user's profile information
-func (u *User) UpdateProfile(name, picture string) {
-	u.Name = name
-	u.Picture = picture
-	u.UpdatedAt = time.Now()
+func (user *User) UpdateProfile(name, picture string) {
+	user.Name = name
+	user.Picture = picture
+	user.UpdatedAt = time.Now()
 }
 
 // Deactivate marks the user as inactive
-func (u *User) Deactivate() {
-	u.IsActive = false
-	u.UpdatedAt = time.Now()
+func (user *User) Deactivate() {
+	user.IsActive = false
+	user.UpdatedAt = time.Now()
 }
 
 // Activate marks the user as active
-func (u *User) Activate() {
-	u.IsActive = true
-	u.UpdatedAt = time.Now()
+func (user *User) Activate() {
+	user.IsActive = true
+	user.UpdatedAt = time.Now()
 }
 
 // UpdateStats updates the user's statistics
-func (u *User) UpdateStats(points int, isCorrect bool) {
-	u.Stats.TotalPoints += points
-	u.Stats.TotalPredictions++
+func (user *User) UpdateStats(points int, isCorrect bool) {
+	user.Stats.TotalPoints += points
+	user.Stats.TotalPredictions++
 	if isCorrect {
-		u.Stats.CorrectPredictions++
+		user.Stats.CorrectPredictions++
 	}
 }
 
 // GetSuccessRate returns the user's prediction success rate
-func (u *User) GetSuccessRate() float64 {
-	if u.Stats.TotalPredictions == 0 {
+func (user *User) GetSuccessRate() float64 {
+	if user.Stats.TotalPredictions == 0 {
 		return 0
 	}
-	return float64(u.Stats.CorrectPredictions) / float64(u.Stats.TotalPredictions) * 100
+	return float64(user.Stats.CorrectPredictions) / float64(user.Stats.TotalPredictions) * 100
 }
