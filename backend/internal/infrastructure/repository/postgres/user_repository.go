@@ -20,7 +20,7 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 // Create implements repository.UserRepository
-func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
+func (repo *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
 		INSERT INTO users_view (
 			id, google_id, email, name, picture_url,
@@ -28,7 +28,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 			total_points, correct_predictions, total_predictions, current_rank
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := repo.db.ExecContext(ctx, query,
 		user.ID,
 		user.GoogleID,
 		user.Email,
@@ -42,11 +42,14 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 		user.Stats.TotalPredictions,
 		user.Stats.CurrentRank,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+	return nil
 }
 
 // GetByID implements repository.UserRepository
-func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+func (repo *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
 			created_at, updated_at, is_active,
@@ -54,11 +57,11 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, 
 		FROM users_view
 		WHERE id = $1
 	`
-	return r.queryUser(ctx, query, id)
+	return repo.queryUser(ctx, query, id)
 }
 
 // GetByGoogleID implements repository.UserRepository
-func (r *UserRepository) GetByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
+func (repo *UserRepository) GetByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
 			created_at, updated_at, is_active,
@@ -66,11 +69,11 @@ func (r *UserRepository) GetByGoogleID(ctx context.Context, googleID string) (*d
 		FROM users_view
 		WHERE google_id = $1
 	`
-	return r.queryUser(ctx, query, googleID)
+	return repo.queryUser(ctx, query, googleID)
 }
 
 // GetByEmail implements repository.UserRepository
-func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (repo *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
 			created_at, updated_at, is_active,
@@ -78,28 +81,31 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 		FROM users_view
 		WHERE email = $1
 	`
-	return r.queryUser(ctx, query, email)
+	return repo.queryUser(ctx, query, email)
 }
 
 // Update implements repository.UserRepository
-func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
+func (repo *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	query := `
 		UPDATE users_view
 		SET name = $1, picture_url = $2, updated_at = $3, is_active = $4
 		WHERE id = $5
 	`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := repo.db.ExecContext(ctx, query,
 		user.Name,
 		user.Picture,
 		user.UpdatedAt,
 		user.IsActive,
 		user.ID,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return nil
 }
 
 // List implements repository.UserRepository
-func (r *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.User, error) {
+func (repo *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
 			created_at, updated_at, is_active,
@@ -111,7 +117,7 @@ func (r *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.U
 	}
 	query += " ORDER BY total_points DESC"
 
-	rows, err := r.db.QueryContext(ctx, query)
+	rows, err := repo.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -124,7 +130,7 @@ func (r *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.U
 
 	var users []*domain.User
 	for rows.Next() {
-		user, err := r.scanUser(rows)
+		user, err := repo.scanUser(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +140,7 @@ func (r *UserRepository) List(ctx context.Context, activeOnly bool) ([]*domain.U
 }
 
 // UpdateStats implements repository.UserRepository
-func (r *UserRepository) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
+func (repo *UserRepository) UpdateStats(ctx context.Context, userID string, points int, isCorrect bool) error {
 	query := `
 		UPDATE users_view
 		SET total_points = total_points + $1,
@@ -146,23 +152,29 @@ func (r *UserRepository) UpdateStats(ctx context.Context, userID string, points 
 	if isCorrect {
 		correct = 1
 	}
-	_, err := r.db.ExecContext(ctx, query, points, correct, userID)
-	return err
+	_, err := repo.db.ExecContext(ctx, query, points, correct, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update user stats: %w", err)
+	}
+	return nil
 }
 
 // UpdateRank implements repository.UserRepository
-func (r *UserRepository) UpdateRank(ctx context.Context, userID string, rank int) error {
+func (repo *UserRepository) UpdateRank(ctx context.Context, userID string, rank int) error {
 	query := `
 		UPDATE users_view
 		SET current_rank = $1
 		WHERE id = $2
 	`
-	_, err := r.db.ExecContext(ctx, query, rank, userID)
-	return err
+	_, err := repo.db.ExecContext(ctx, query, rank, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update user rank: %w", err)
+	}
+	return nil
 }
 
 // Helper function to scan a user from a row
-func (r *UserRepository) scanUser(rows *sql.Rows) (*domain.User, error) {
+func (repo *UserRepository) scanUser(rows *sql.Rows) (*domain.User, error) {
 	var user domain.User
 	var stats domain.UserStats
 	err := rows.Scan(
@@ -180,15 +192,15 @@ func (r *UserRepository) scanUser(rows *sql.Rows) (*domain.User, error) {
 		&stats.CurrentRank,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to scan user row: %w", err)
 	}
 	user.Stats = stats
 	return &user, nil
 }
 
 // Helper function to query a single user
-func (r *UserRepository) queryUser(ctx context.Context, query string, args ...interface{}) (*domain.User, error) {
-	row := r.db.QueryRowContext(ctx, query, args...)
+func (repo *UserRepository) queryUser(ctx context.Context, query string, args ...interface{}) (*domain.User, error) {
+	row := repo.db.QueryRowContext(ctx, query, args...)
 	var user domain.User
 	var stats domain.UserStats
 	err := row.Scan(
