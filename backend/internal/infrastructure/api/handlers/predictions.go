@@ -76,7 +76,13 @@ func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Requ
 
 		switch event.Type {
 		case "MatchCreated":
-			var matchCreated events.MatchCreated
+			var matchCreated struct {
+				ID          string    `json:"id"`
+				HomeTeam    string    `json:"homeTeam"`
+				AwayTeam    string    `json:"awayTeam"`
+				Date        time.Time `json:"date"`
+				Competition string    `json:"competition"`
+			}
 			if err := json.Unmarshal(data, &matchCreated); err != nil {
 				fmt.Printf("Failed to unmarshal MatchCreated: %v\n", err)
 				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
@@ -90,7 +96,12 @@ func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Requ
 			match.Competition = matchCreated.Competition
 			match.Status = domain.MatchStatusScheduled
 		case "MatchScoreUpdated":
-			var scoreUpdated events.MatchScoreUpdated
+			var scoreUpdated struct {
+				MatchID   string    `json:"matchId"`
+				HomeGoals int       `json:"homeGoals"`
+				AwayGoals int       `json:"awayGoals"`
+				UpdatedAt time.Time `json:"updatedAt"`
+			}
 			if err := json.Unmarshal(data, &scoreUpdated); err != nil {
 				fmt.Printf("Failed to unmarshal MatchScoreUpdated: %v\n", err)
 				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
@@ -99,7 +110,11 @@ func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Requ
 			fmt.Printf("Successfully processed MatchScoreUpdated event\n")
 			match.UpdateScore(scoreUpdated.HomeGoals, scoreUpdated.AwayGoals)
 		case "MatchStatusChanged":
-			var statusChanged events.MatchStatusChanged
+			var statusChanged struct {
+				MatchID string    `json:"matchId"`
+				Status  string    `json:"status"`
+				Date    time.Time `json:"date"`
+			}
 			if err := json.Unmarshal(data, &statusChanged); err != nil {
 				fmt.Printf("Failed to unmarshal MatchStatusChanged: %v\n", err)
 				http.Error(w, "Failed to process match data", http.StatusInternalServerError)
