@@ -41,3 +41,16 @@
   - Changed "HomeGoals" to "homeGoals"
   - Changed "AwayGoals" to "awayGoals"
   - Fixed numeric type conversion for goals fields
+
+---
+
+## 5. internal/infrastructure/api/server
+**Test:** `TestMiddleware`
+- **Status:** ✅ FIXED
+- **Fix:** Updated the middleware test to properly test authentication:
+  - Added test cases for different authentication scenarios:
+    - No auth header
+    - Invalid auth header format
+    - Invalid token
+  - Each test case verifies the correct 401 Unauthorized response
+  - Removed unused mock variable to fix linter error

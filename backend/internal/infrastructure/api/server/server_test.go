@@ -117,11 +117,46 @@ func TestMiddleware(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	// Test middleware
-	req := httptest.NewRequest("GET", "/api/auth/me", nil)
-	rr := httptest.NewRecorder()
-	srv.ServeHTTP(rr, req)
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, rr.Code)
+	// Test cases
+	testCases := []struct {
+		name           string
+		path           string
+		authHeader     string
+		expectedStatus int
+	}{
+		{
+			name:           "No auth header",
+			path:           "/api/auth/me",
+			authHeader:     "",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid auth header format",
+			path:           "/api/auth/me",
+			authHeader:     "Invalid",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid token",
+			path:           "/api/auth/me",
+			authHeader:     "Bearer invalid-token",
+			expectedStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest("GET", tc.path, nil)
+			if tc.authHeader != "" {
+				req.Header.Set("Authorization", tc.authHeader)
+			}
+			rr := httptest.NewRecorder()
+			srv.ServeHTTP(rr, req)
+			if rr.Code != tc.expectedStatus {
+				t.Errorf("Expected status code %d, got %d", tc.expectedStatus, rr.Code)
+			}
+		})
 	}
 }
