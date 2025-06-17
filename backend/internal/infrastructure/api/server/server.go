@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -106,12 +107,18 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 
 // Start starts the server.
 func (s *Server) Start() error {
-	return s.server.ListenAndServe()
+	if err := s.server.ListenAndServe(); err != nil {
+		return fmt.Errorf("failed to start server: %w", err)
+	}
+	return nil
 }
 
 // Shutdown gracefully shuts down the server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.server.Shutdown(ctx)
+	if err := s.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown server: %w", err)
+	}
+	return nil
 }
 
 // Handler returns the main HTTP handler for the server.

@@ -84,7 +84,7 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 
 	user, err := h.userRepo.GetByID(ctx, data.UserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	if user == nil {
@@ -98,6 +98,7 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 	if err := h.userRepo.Update(ctx, user); err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
+
 	return nil
 }
 
@@ -116,7 +117,7 @@ func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *eve
 
 	user, err := h.userRepo.GetByID(ctx, data.UserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	if user == nil {
@@ -129,5 +130,6 @@ func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *eve
 	if err := h.userRepo.Update(ctx, user); err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
+
 	return nil
 }
