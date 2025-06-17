@@ -30,7 +30,7 @@ func NewServer(userRepo repository.UserRepository, matchRepo repository.MatchRep
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(userRepo, tokenManager, eventStore)
 	matchHandler := handlers.NewMatchHandler(eventStore, matchRepo)
-	predictionHandler := handlers.NewPredictionHandler(eventStore)
+	predictionHandler := handlers.NewPredictionHandler(eventStore, matchRepo)
 
 	// Create subrouters for authenticated and unauthenticated routes
 	authRouter := router.PathPrefix("/api/auth").Subrouter()
@@ -110,6 +110,7 @@ func (s *Server) Start() error {
 	if err := s.server.ListenAndServe(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
 	}
+
 	return nil
 }
 
@@ -118,6 +119,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
+
 	return nil
 }
 

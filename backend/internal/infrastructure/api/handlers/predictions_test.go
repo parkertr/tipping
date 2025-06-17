@@ -25,7 +25,8 @@ func TestCreatePrediction(t *testing.T) {
 		t.Parallel()
 
 		mockStore := new(mocks.MockEventStore)
-		handler := handlers.NewPredictionHandler(mockStore)
+		mockMatchRepo := new(mocks.MockMatchRepository)
+		handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 		prediction := domain.NewPrediction(
 			"pred1",
 			"user1",
@@ -94,7 +95,8 @@ func TestCreatePrediction(t *testing.T) {
 		t.Parallel()
 
 		mockStore := new(mocks.MockEventStore)
-		handler := handlers.NewPredictionHandler(mockStore)
+		mockMatchRepo := new(mocks.MockMatchRepository)
+		handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBufferString("invalid json"))
 		rr := httptest.NewRecorder()
 
@@ -110,7 +112,8 @@ func TestCreatePrediction(t *testing.T) {
 		t.Parallel()
 
 		mockStore := new(mocks.MockEventStore)
-		handler := handlers.NewPredictionHandler(mockStore)
+		mockMatchRepo := new(mocks.MockMatchRepository)
+		handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 		prediction := domain.Prediction{
 			ID:        "pred123",
 			UserID:    "user123",
@@ -145,7 +148,8 @@ func TestCreatePrediction(t *testing.T) {
 		t.Parallel()
 
 		mockStore := new(mocks.MockEventStore)
-		handler := handlers.NewPredictionHandler(mockStore)
+		mockMatchRepo := new(mocks.MockMatchRepository)
+		handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 		prediction := domain.Prediction{
 			ID:        "pred123",
 			UserID:    "user123",
@@ -230,7 +234,8 @@ func TestGetUserPredictions(t *testing.T) {
 		t.Parallel()
 		// Create mock event store
 		mockStore := new(mocks.MockEventStore)
-		handler := handlers.NewPredictionHandler(mockStore)
+		mockMatchRepo := new(mocks.MockMatchRepository)
+		handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 		userID := "user123"
 
 		// Create request with mux vars
@@ -290,7 +295,8 @@ func TestGetUserPredictions(t *testing.T) {
 		t.Parallel()
 		// Create mock event store
 		mockStore := new(mocks.MockEventStore)
-		handler := handlers.NewPredictionHandler(mockStore)
+		mockMatchRepo := new(mocks.MockMatchRepository)
+		handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 		userID := "user123"
 
 		// Create request with mux vars
@@ -344,7 +350,8 @@ func TestGetMatchPredictions(t *testing.T) {
 	t.Parallel()
 	// Create mock event store
 	mockStore := new(mocks.MockEventStore)
-	handler := handlers.NewPredictionHandler(mockStore)
+	mockMatchRepo := new(mocks.MockMatchRepository)
+	handler := handlers.NewPredictionHandler(mockStore, mockMatchRepo)
 
 	// Test case 1: Match has predictions
 	t.Run("Match has predictions", func(t *testing.T) {
