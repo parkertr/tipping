@@ -37,7 +37,9 @@ func TestCreatePrediction(t *testing.T) {
 			Status:      domain.MatchStatusScheduled,
 			Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 		}
-		matchRepo.Create(context.Background(), match)
+		if err := matchRepo.Create(context.Background(), match); err != nil {
+			t.Fatalf("Failed to create test match: %v", err)
+		}
 
 		// Create request
 		createPredictionRequest := handlers.CreatePredictionRequest{

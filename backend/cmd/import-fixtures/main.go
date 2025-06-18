@@ -53,7 +53,11 @@ func main() {
 	}
 
 	db, eventStore, eventHandler := setupDatabase(*dbURL)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Error closing database: %v", err)
+		}
+	}()
 
 	importFixtures(context.Background(), fixtures, eventStore, eventHandler)
 }
