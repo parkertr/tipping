@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
 )
 
 type PredictionRepository struct {
@@ -66,13 +67,13 @@ func (r *PredictionRepository) Update(ctx context.Context, prediction *domain.Pr
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("prediction not found: %s", prediction.ID)
+		return repository.ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.Prediction, error) {
+func (r *PredictionRepository) GetByID(ctx context.Context, predictionID string) (*domain.Prediction, error) {
 	query := `
 		SELECT id, user_id, match_id, home_goals, away_goals, points
 		FROM predictions_view
@@ -80,7 +81,7 @@ func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.
 	`
 
 	prediction := &domain.Prediction{}
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, predictionID).Scan(
 		&prediction.ID,
 		&prediction.UserID,
 		&prediction.MatchID,
@@ -90,17 +91,20 @@ func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("prediction not found with ID %s: %w", id, err)
+		return nil, fmt.Errorf("prediction not found with ID %s: %w", predictionID, err)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get prediction with ID %s: %w", id, err)
+		return nil, fmt.Errorf("failed to get prediction with ID %s: %w", predictionID, err)
 	}
 
 	return prediction, nil
 }
 
-func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, matchID string) (*domain.Prediction, error) {
+func (r *PredictionRepository) GetByUserAndMatch(
+	ctx context.Context,
+	userID, matchID string,
+) (*domain.Prediction, error) {
 	query := `
 		SELECT id, user_id, match_id, home_goals, away_goals, points
 		FROM predictions_view
@@ -118,11 +122,7 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf(
-			"prediction not found for user %s and match %s",
-			userID,
-			matchID,
-		)
+		return nil, repository.ErrNotFound
 	}
 
 	if err != nil {

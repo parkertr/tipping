@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
@@ -16,29 +17,29 @@ type MockMatchRepository struct {
 func (m *MockMatchRepository) Create(ctx context.Context, match *domain.Match) error {
 	args := m.Called(ctx, match)
 
-	return args.Error(0)
+	return fmt.Errorf("mock match repository error: %w", args.Error(0))
 }
 
 func (m *MockMatchRepository) Update(ctx context.Context, match *domain.Match) error {
 	args := m.Called(ctx, match)
 
-	return args.Error(0)
+	return fmt.Errorf("mock match repository error: %w", args.Error(0))
 }
 
 func (m *MockMatchRepository) GetByID(ctx context.Context, id string) (*domain.Match, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, fmt.Errorf("mock match repository error: %w", args.Error(1))
 	}
 
-	return args.Get(0).(*domain.Match), args.Error(1)
+	return args.Get(0).(*domain.Match), nil
 }
 
 func (m *MockMatchRepository) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
 	args := m.Called(ctx, filters)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, fmt.Errorf("mock match repository error: %w", args.Error(1))
 	}
 
-	return args.Get(0).([]*domain.Match), args.Error(1)
+	return args.Get(0).([]*domain.Match), nil
 }

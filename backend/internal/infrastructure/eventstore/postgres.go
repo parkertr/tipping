@@ -78,19 +78,21 @@ func (store *PostgresEventStore) GetEventsByType(ctx context.Context, eventType 
 }
 
 // GetEventsByTimeRange retrieves events within a time range.
-func (store *PostgresEventStore) GetEventsByTimeRange(ctx context.Context, start, end time.Time) ([]*events.Event, error) {
-	query := `
-		SELECT id, type, data, timestamp, version
-		FROM events
-		WHERE timestamp BETWEEN $1 AND $2
-		ORDER BY timestamp ASC
-	`
+func (store *PostgresEventStore) GetEventsByTimeRange(
+	ctx context.Context,
+	start, end time.Time,
+) ([]*events.Event, error) {
+	query := `SELECT id, type, data, timestamp FROM events WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp ASC`
 
 	return store.queryEvents(ctx, query, start, end)
 }
 
 // queryEvents is a helper to run a query and scan/unmarshal events.
-func (store *PostgresEventStore) queryEvents(ctx context.Context, query string, args ...interface{}) ([]*events.Event, error) {
+func (store *PostgresEventStore) queryEvents(
+	ctx context.Context,
+	query string,
+	args ...interface{},
+) ([]*events.Event, error) {
 	rows, err := store.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events: %w", err)

@@ -48,6 +48,7 @@ func main() {
 
 	if *dryRun {
 		printDryRun(fixtures)
+
 		return
 	}
 
@@ -59,6 +60,7 @@ func main() {
 
 func printDryRun(fixtures []MatchFixture) {
 	fmt.Println("\nDry run mode - showing what would be imported:")
+
 	for _, fixture := range fixtures {
 		fmt.Printf("- %s vs %s (%s) on %s\n",
 			fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
@@ -86,24 +88,33 @@ func setupDatabase(dbURL string) (*sql.DB, *eventstore.PostgresEventStore, *even
 	return db, eventStore, eventHandler
 }
 
-func importFixtures(ctx context.Context, fixtures []MatchFixture, eventStore *eventstore.PostgresEventStore, eventHandler *eventhandlers.MatchEventHandler) {
+func importFixtures(
+	ctx context.Context,
+	fixtures []MatchFixture,
+	eventStore *eventstore.PostgresEventStore,
+	eventHandler *eventhandlers.MatchEventHandler,
+) {
 	imported := 0
 	skipped := 0
 
 	for _, fixture := range fixtures {
 		if shouldSkipFixture(ctx, fixture, eventStore) {
 			fmt.Printf("Skipping %s vs %s - already exists\n", fixture.HomeTeam, fixture.AwayTeam)
+
 			skipped++
+
 			continue
 		}
 
 		if err := importFixture(ctx, fixture, eventStore, eventHandler); err != nil {
 			log.Printf("Failed to import match %s vs %s: %v", fixture.HomeTeam, fixture.AwayTeam, err)
+
 			continue
 		}
 
 		fmt.Printf("Imported: %s vs %s (%s) on %s\n",
 			fixture.HomeTeam, fixture.AwayTeam, fixture.Competition, fixture.Date.Format("2006-01-02 15:04"))
+
 		imported++
 	}
 
@@ -114,12 +125,19 @@ func shouldSkipFixture(ctx context.Context, fixture MatchFixture, eventStore *ev
 	existingEvents, err := eventStore.GetEvents(ctx, fixture.ID)
 	if err != nil {
 		log.Printf("Error checking for existing match %s: %v", fixture.ID, err)
+
 		return true
 	}
+
 	return len(existingEvents) > 0
 }
 
-func importFixture(ctx context.Context, fixture MatchFixture, eventStore *eventstore.PostgresEventStore, eventHandler *eventhandlers.MatchEventHandler) error {
+func importFixture(
+	ctx context.Context,
+	fixture MatchFixture,
+	eventStore *eventstore.PostgresEventStore,
+	eventHandler *eventhandlers.MatchEventHandler,
+) error {
 	matchCreated := events.MatchCreated{
 		ID:          fixture.ID,
 		HomeTeam:    fixture.HomeTeam,

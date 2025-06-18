@@ -24,6 +24,14 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// NewClaims creates a new Claims instance with all fields initialized.
+func NewClaims() *Claims {
+	return &Claims{
+		UserID:           "",
+		RegisteredClaims: jwt.RegisteredClaims{},
+	}
+}
+
 // TokenManager handles JWT token operations.
 type TokenManager struct {
 	secretKey []byte
@@ -57,12 +65,25 @@ func (manager *TokenManager) GenerateToken(userID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
+
 	return tokenString, nil
 }
 
 // ValidateToken validates a JWT token and returns the claims.
 func (manager *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(_ *jwt.Token) (interface{}, error) {
+	claims := &Claims{
+		UserID: "",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: nil,
+			IssuedAt:  nil,
+			NotBefore: nil,
+			Issuer:    "",
+			Subject:   "",
+			ID:        "",
+			Audience:  nil,
+		},
+	}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
 		return manager.secretKey, nil
 	})
 

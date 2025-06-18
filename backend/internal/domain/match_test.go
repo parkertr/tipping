@@ -10,16 +10,16 @@ import (
 func TestNewMatch(t *testing.T) {
 	t.Parallel()
 
-	id := "match1"
+	matchID := "match1"
 	homeTeam := "Arsenal"
 	awayTeam := "Chelsea"
 	date := time.Now()
 	competition := "Premier League"
 
-	match := domain.NewMatch(id, homeTeam, awayTeam, date, competition)
+	match := domain.NewMatch(matchID, homeTeam, awayTeam, date, competition)
 
-	if match.ID != id {
-		t.Errorf("Expected ID %s, got %s", id, match.ID)
+	if match.ID != matchID {
+		t.Errorf("Expected ID %s, got %s", matchID, match.ID)
 	}
 
 	if match.HomeTeam != homeTeam {

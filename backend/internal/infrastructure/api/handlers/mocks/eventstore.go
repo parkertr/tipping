@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/parkertr/tipping/pkg/events"
@@ -16,7 +17,7 @@ type MockEventStore struct {
 func (m *MockEventStore) SaveEvent(ctx context.Context, event *events.Event) error {
 	args := m.Called(ctx, event)
 
-	return args.Error(0)
+	return fmt.Errorf("mock event store error: %w", args.Error(0))
 }
 
 func (m *MockEventStore) GetEvents(ctx context.Context, aggregateID string) ([]*events.Event, error) {

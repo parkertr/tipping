@@ -10,7 +10,7 @@ import (
 func TestNewPrediction(t *testing.T) {
 	t.Parallel()
 
-	id := "pred1"
+	predictionID := "pred1"
 	userID := "user1"
 	matchID := "match1"
 	homeGoals := 2
@@ -24,8 +24,8 @@ func TestNewPrediction(t *testing.T) {
 		1,
 	)
 
-	if prediction.ID != id {
-		t.Errorf("Expected ID %s, got %s", id, prediction.ID)
+	if prediction.ID != predictionID {
+		t.Errorf("Expected ID %s, got %s", predictionID, prediction.ID)
 	}
 
 	if prediction.UserID != userID {

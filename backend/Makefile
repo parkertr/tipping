@@ -4,7 +4,7 @@ build:
 	go build -o bin/api cmd/api/main.go
 
 test:
-	go test -v ./...
+	go test ./...
 
 lint:
-	golangci-lint run ./...
+	golangci-lint run --fix

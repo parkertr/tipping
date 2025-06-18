@@ -52,7 +52,7 @@ func (repo *UserRepository) Create(ctx context.Context, user *domain.User) error
 }
 
 // GetByID implements repository.UserRepository.
-func (repo *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+func (repo *UserRepository) GetByID(ctx context.Context, userID string) (*domain.User, error) {
 	query := `
 		SELECT id, google_id, email, name, picture_url,
 			created_at, updated_at, is_active,
@@ -61,7 +61,7 @@ func (repo *UserRepository) GetByID(ctx context.Context, id string) (*domain.Use
 		WHERE id = $1
 	`
 
-	return repo.queryUser(ctx, query, id)
+	return repo.queryUser(ctx, query, userID)
 }
 
 // GetByGoogleID implements repository.UserRepository.

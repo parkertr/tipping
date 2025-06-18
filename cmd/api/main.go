@@ -2,66 +2,30 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/auth"
 )
 
 func main() {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL environment variable is required")
-	}
+	// Initialize repositories
+	userRepo := repository.NewUserRepository()
+	matchRepo := repository.NewMatchRepository()
 
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
+	// Initialize token manager
+	tokenMgr := auth.NewTokenManager()
 
-	s, err := server.NewServer(db)
-	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
-	}
-	defer func() {
-		if err := s.Close(); err != nil {
-			log.Printf("Error closing server: %v", err)
-		}
-	}()
-
-	httpServer := &http.Server{
-		Addr:                         ":8080",
-		Handler:                      s.router,
-		ReadTimeout:                  15 * time.Second,
-		WriteTimeout:                 15 * time.Second,
-		IdleTimeout:                  60 * time.Second,
-		MaxHeaderBytes:               1 << 20,
-		ReadHeaderTimeout:            5 * time.Second,
-		DisableGeneralOptionsHandler: false,
-		TLSConfig:                    nil,
-		TLSNextProto:                 nil,
-		ConnState:                    nil,
-		ErrorLog:                     nil,
-		BaseContext:                  nil,
-		ConnContext:                  nil,
-		HTTP2:                        &http.HTTP2Config{},
-		Protocols:                    nil,
-	}
+	// Create and start server
+	srv := server.New(userRepo, matchRepo, tokenMgr)
 
 	// Start server in a goroutine
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.Start(8080); err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
@@ -71,11 +35,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+	// Gracefully shutdown server
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Fatalf("Failed to shutdown server: %v", err)
 	}
 }

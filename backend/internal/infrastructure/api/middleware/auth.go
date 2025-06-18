@@ -10,11 +10,17 @@ import (
 	"github.com/parkertr/tipping/pkg/auth"
 )
 
-// UserContextKey is the key used to store the user in the context.
-var UserContextKey = struct{}{}
+// ContextKey is a type for context keys to avoid collisions
+type ContextKey string
+
+// UserContextKey is the key used to store the user in the context
+const UserContextKey ContextKey = "user"
 
 // AuthMiddleware is a middleware that checks for a valid JWT token.
-func AuthMiddleware(tokenManager *auth.TokenManager, userRepo repository.UserRepository) func(http.Handler) http.Handler {
+func AuthMiddleware(
+	tokenManager *auth.TokenManager,
+	userRepo repository.UserRepository,
+) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get the Authorization header
@@ -73,14 +79,14 @@ func GetUserFromContext(ctx context.Context) *domain.User {
 
 // RequireAuth is a middleware that ensures the request has a valid authenticated user.
 func RequireAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := GetUserFromContext(r.Context())
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		user := GetUserFromContext(request.Context())
 		if user == nil {
-			http.Error(w, "authentication required", http.StatusUnauthorized)
+			http.Error(writer, "authentication required", http.StatusUnauthorized)
 
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(writer, request)
 	})
 }

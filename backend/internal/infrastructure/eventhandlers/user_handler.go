@@ -3,12 +3,15 @@ package eventhandlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
 	"github.com/parkertr/tipping/pkg/events"
 )
+
+var ErrInvalidEventDataType = errors.New("invalid event data type: expected []byte")
 
 // UserEventHandler handles user-related events.
 type UserEventHandler struct {
@@ -42,7 +45,7 @@ func (h *UserEventHandler) handleUserRegistered(ctx context.Context, event *even
 
 	eventData, ok := event.Data.([]byte)
 	if !ok {
-		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
+		return ErrInvalidEventDataType
 	}
 
 	if err := json.Unmarshal(eventData, &data); err != nil {
@@ -66,7 +69,11 @@ func (h *UserEventHandler) handleUserRegistered(ctx context.Context, event *even
 		},
 	}
 
-	return h.userRepo.Create(ctx, user)
+	if err := h.userRepo.Create(ctx, user); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return nil
 }
 
 // handleUserProfileUpdated processes UserProfileUpdated events.
@@ -75,7 +82,7 @@ func (h *UserEventHandler) handleUserProfileUpdated(ctx context.Context, event *
 
 	eventData, ok := event.Data.([]byte)
 	if !ok {
-		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
+		return ErrInvalidEventDataType
 	}
 
 	if err := json.Unmarshal(eventData, &data); err != nil {
@@ -108,7 +115,7 @@ func (h *UserEventHandler) handleUserDeactivated(ctx context.Context, event *eve
 
 	eventData, ok := event.Data.([]byte)
 	if !ok {
-		return fmt.Errorf("invalid event data type: expected []byte, got %T", event.Data)
+		return ErrInvalidEventDataType
 	}
 
 	if err := json.Unmarshal(eventData, &data); err != nil {

@@ -92,13 +92,13 @@ func (r *MatchRepository) Update(ctx context.Context, match *domain.Match) error
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("match not found: %s", match.ID)
+		return repository.ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match, error) {
+func (r *MatchRepository) GetByID(ctx context.Context, matchID string) (*domain.Match, error) {
 	query := `
 		SELECT id, home_team, away_team, match_date, competition, status, home_goals, away_goals
 		FROM matches_view
@@ -116,7 +116,7 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 		Status:      domain.MatchStatusScheduled,
 		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 	}
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, matchID).Scan(
 		&match.ID,
 		&match.HomeTeam,
 		&match.AwayTeam,
@@ -128,11 +128,11 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("match not found with ID %s: %w", id, err)
+		return nil, fmt.Errorf("match not found with ID %s: %w", matchID, err)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan match with ID %s: %w", id, err)
+		return nil, fmt.Errorf("failed to scan match with ID %s: %w", matchID, err)
 	}
 
 	if homeGoals.Valid && awayGoals.Valid {
@@ -148,7 +148,9 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 // buildMatchQuery builds the SQL query and arguments for listing matches with filters.
 func (r *MatchRepository) buildMatchQuery(filters repository.MatchFilters) (string, []interface{}) {
 	var conditions []string
+
 	var args []interface{}
+
 	argPos := 1
 
 	if filters.Competition != nil {
@@ -247,6 +249,7 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 		if err != nil {
 			return nil, err
 		}
+
 		matches = append(matches, match)
 	}
 

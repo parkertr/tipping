@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,17 +9,24 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
 	"github.com/parkertr/tipping/pkg/events"
 	"github.com/parkertr/tipping/pkg/utils"
 )
 
+var (
+	ErrMatchNotFound = errors.New("match not found")
+)
+
 type PredictionHandler struct {
 	eventStore EventStore
+	matchRepo  repository.MatchRepository
 }
 
-func NewPredictionHandler(eventStore EventStore) *PredictionHandler {
+func NewPredictionHandler(eventStore EventStore, matchRepo repository.MatchRepository) *PredictionHandler {
 	return &PredictionHandler{
 		eventStore: eventStore,
+		matchRepo:  matchRepo,
 	}
 }
 
@@ -43,131 +49,48 @@ type PredictionResponse struct {
 	Points    int       `json:"points"`
 }
 
-// rebuildMatchFromEvents rebuilds a match from its event history.
-func (h *PredictionHandler) rebuildMatchFromEvents(ctx context.Context, matchID string) (*domain.Match, error) {
-	events, err := h.eventStore.GetEvents(ctx, matchID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve events: %w", err)
-	}
-
-	if len(events) == 0 {
-		return nil, errors.New("match not found")
-	}
-
-	match := &domain.Match{}
-
-	fmt.Printf("Processing %d events\n", len(events))
-
-	for _, event := range events {
-		// Debug logging
-		data, _ := json.Marshal(event.Data)
-		fmt.Printf("Event type: %s, Data: %s\n", event.Type, string(data))
-
-		if err := h.processMatchEvent(match, event, data); err != nil {
-			return nil, fmt.Errorf("failed to process event: %w", err)
-		}
-	}
-
-	return match, nil
-}
-
-// processMatchEvent processes a single match event.
-func (h *PredictionHandler) processMatchEvent(match *domain.Match, event *events.Event, data []byte) error {
-	switch event.Type {
-	case "MatchCreated":
-		var matchCreated struct {
-			ID          string    `json:"id"`
-			HomeTeam    string    `json:"homeTeam"`
-			AwayTeam    string    `json:"awayTeam"`
-			Date        time.Time `json:"date"`
-			Competition string    `json:"competition"`
-		}
-
-		if err := json.Unmarshal(data, &matchCreated); err != nil {
-			return fmt.Errorf("failed to unmarshal MatchCreated: %w", err)
-		}
-
-		fmt.Printf("Successfully processed MatchCreated event\n")
-
-		match.ID = matchCreated.ID
-		match.HomeTeam = matchCreated.HomeTeam
-		match.AwayTeam = matchCreated.AwayTeam
-		match.Date = matchCreated.Date
-		match.Competition = matchCreated.Competition
-		match.Status = domain.MatchStatusScheduled
-
-	case "MatchScoreUpdated":
-		var scoreUpdated struct {
-			MatchID   string    `json:"matchId"`
-			HomeGoals int       `json:"homeGoals"`
-			AwayGoals int       `json:"awayGoals"`
-			UpdatedAt time.Time `json:"updatedAt"`
-		}
-
-		if err := json.Unmarshal(data, &scoreUpdated); err != nil {
-			return fmt.Errorf("failed to unmarshal MatchScoreUpdated: %w", err)
-		}
-
-		fmt.Printf("Successfully processed MatchScoreUpdated event\n")
-		match.UpdateScore(scoreUpdated.HomeGoals, scoreUpdated.AwayGoals)
-
-	case "MatchStatusChanged":
-		var statusChanged struct {
-			MatchID string    `json:"matchId"`
-			Status  string    `json:"status"`
-			Date    time.Time `json:"date"`
-		}
-
-		if err := json.Unmarshal(data, &statusChanged); err != nil {
-			return fmt.Errorf("failed to unmarshal MatchStatusChanged: %w", err)
-		}
-
-		fmt.Printf("Successfully processed MatchStatusChanged event, new status: %s\n", statusChanged.Status)
-		match.Status = domain.MatchStatus(statusChanged.Status)
-	}
-
-	return nil
-}
-
 // CreatePrediction handles the creation of a new prediction.
-func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Request) {
-	var request CreatePredictionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+func (h *PredictionHandler) CreatePrediction(writer http.ResponseWriter, request *http.Request) {
+	var createPredictionRequest CreatePredictionRequest
+	if err := json.NewDecoder(request.Body).Decode(&createPredictionRequest); err != nil {
+		http.Error(writer, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
 
+	// Validate required fields
+	if createPredictionRequest.UserID == "" || createPredictionRequest.MatchID == "" {
+		http.Error(writer, "missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	// Get match
+	match, err := h.matchRepo.GetByID(request.Context(), createPredictionRequest.MatchID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			http.Error(writer, "match not found", http.StatusNotFound)
+			return
+		}
+		errMsg := fmt.Sprintf(
+			"Failed to retrieve match with ID %s: %v",
+			createPredictionRequest.MatchID,
+			err,
+		)
+		http.Error(writer, errMsg, http.StatusInternalServerError)
 		return
 	}
 
 	// Check if match exists and is not finished
-	match, err := h.rebuildMatchFromEvents(r.Context(), request.MatchID)
-	if err != nil {
-		if err.Error() == "match not found" {
-			http.Error(w, "Match not found with ID "+request.MatchID, http.StatusNotFound)
-
-			return
-		}
-
-		http.Error(w, fmt.Sprintf("Failed to retrieve match with ID %s: %v", request.MatchID, err), http.StatusInternalServerError)
-
-		return
-	}
-
-	// Debug logging
-	fmt.Printf("Match status after events: %s\n", match.Status)
-
 	if match.Status == domain.MatchStatusFinished {
-		fmt.Printf("Match is finished, returning 400\n")
-		http.Error(w, "cannot create prediction for finished match", http.StatusBadRequest)
-
+		http.Error(writer, "cannot create prediction for finished match", http.StatusBadRequest)
 		return
 	}
 
 	prediction := domain.NewPrediction(
 		utils.GenerateID(),
-		request.UserID,
-		request.MatchID,
-		request.HomeGoals,
-		request.AwayGoals,
+		createPredictionRequest.UserID,
+		createPredictionRequest.MatchID,
+		createPredictionRequest.HomeGoals,
+		createPredictionRequest.AwayGoals,
 	)
 
 	event := events.NewEvent("PredictionMade", events.PredictionMade{
@@ -179,17 +102,21 @@ func (h *PredictionHandler) CreatePrediction(w http.ResponseWriter, r *http.Requ
 		CreatedAt: prediction.CreatedAt,
 	})
 
-	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create prediction for match %s: %v", request.MatchID, err), http.StatusInternalServerError)
-
+	if err := h.eventStore.SaveEvent(request.Context(), event); err != nil {
+		errMsg := fmt.Sprintf(
+			"Failed to create prediction for match %s: %v",
+			createPredictionRequest.MatchID,
+			err,
+		)
+		http.Error(writer, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusCreated)
 
-	if err := json.NewEncoder(w).Encode(prediction); err != nil {
-		fmt.Printf("error encoding prediction for match %s: %v\n", request.MatchID, err)
+	if err := json.NewEncoder(writer).Encode(prediction); err != nil {
+		fmt.Printf("error encoding prediction for match %s: %v\n", createPredictionRequest.MatchID, err)
 	}
 }
 
@@ -223,7 +150,11 @@ func (h *PredictionHandler) unmarshalPredictionEvent(event *events.Event) (*doma
 }
 
 // getPredictions retrieves predictions based on the given filter.
-func (h *PredictionHandler) getPredictions(w http.ResponseWriter, r *http.Request, filter func(*domain.Prediction) bool) {
+func (h *PredictionHandler) getPredictions(
+	w http.ResponseWriter,
+	r *http.Request,
+	filter func(*domain.Prediction) bool,
+) {
 	events, err := h.eventStore.GetEventsByType(r.Context(), "PredictionMade")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to retrieve predictions: %v", err), http.StatusInternalServerError)
@@ -274,14 +205,14 @@ func (h *PredictionHandler) GetMatchPredictions(w http.ResponseWriter, r *http.R
 }
 
 // GetUserPredictionForMatch retrieves a specific user's prediction for a specific match.
-func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+func (h *PredictionHandler) GetUserPredictionForMatch(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
 	matchID := vars["matchId"]
 	userID := vars["userId"]
 
-	events, err := h.eventStore.GetEventsByType(r.Context(), "PredictionMade")
+	events, err := h.eventStore.GetEventsByType(request.Context(), "PredictionMade")
 	if err != nil {
-		http.Error(w, "failed to retrieve predictions", http.StatusInternalServerError)
+		http.Error(writer, "failed to retrieve predictions", http.StatusInternalServerError)
 
 		return
 	}
@@ -289,15 +220,15 @@ func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *
 	for _, event := range events {
 		prediction, err := h.unmarshalPredictionEvent(event)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to process prediction data: %v", err), http.StatusInternalServerError)
+			http.Error(writer, fmt.Sprintf("Failed to process prediction data: %v", err), http.StatusInternalServerError)
 
 			return
 		}
 
 		if prediction.MatchID == matchID && prediction.UserID == userID {
-			w.Header().Set("Content-Type", "application/json")
+			writer.Header().Set("Content-Type", "application/json")
 
-			if err := json.NewEncoder(w).Encode(prediction); err != nil {
+			if err := json.NewEncoder(writer).Encode(prediction); err != nil {
 				fmt.Printf("error encoding prediction: %v\n", err)
 			}
 
@@ -306,7 +237,7 @@ func (h *PredictionHandler) GetUserPredictionForMatch(w http.ResponseWriter, r *
 	}
 
 	// No prediction found
-	http.Error(w, "prediction not found", http.StatusNotFound)
+	http.Error(writer, "prediction not found", http.StatusNotFound)
 }
 
 // RegisterRoutes registers the prediction handler routes.

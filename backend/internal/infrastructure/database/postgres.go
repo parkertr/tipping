@@ -16,17 +16,17 @@ func NewPostgresDB() (*sql.DB, error) {
 	}
 
 	// Connect to the database
-	db, err := sql.Open("postgres", dbURL)
+	database, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	// Test the connection
-	if err := db.Ping(); err != nil {
+	if err := database.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return db, nil
+	return database, nil
 }
 
 // CloseDB closes the database connection.

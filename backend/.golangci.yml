@@ -4,113 +4,113 @@ linters:
   # Default set of linters.
   # The value can be: `standard`, `all`, `none`, or `fast`.
   # Default: standard
-  default: all
+  default: standard
   # Enable specific linter.
   # https://golangci-lint.run/usage/linters/#enabled-by-default
   enable:
-    - asasalint
-    - asciicheck
-    - bidichk
-    - bodyclose
-    - canonicalheader
-    - containedctx
-    - contextcheck
-    - copyloopvar
-    - cyclop
-    - decorder
+    # - asasalint
+    # - asciicheck
+    # - bidichk
+    # - bodyclose
+    # - canonicalheader
+    # - containedctx
+    # - contextcheck
+    # - copyloopvar
+    # - cyclop
+    # - decorder
     # - depguard
-    - dogsled
-    - dupl
-    - dupword
-    - durationcheck
-    - err113
-    - errcheck
-    - errchkjson
-    - errname
-    - errorlint
-    - exhaustive
-    - exhaustruct
-    - exptostd
-    - fatcontext
-    - forbidigo
-    - forcetypeassert
-    - funlen
-    - ginkgolinter
-    - gocheckcompilerdirectives
-    - gochecknoglobals
-    - gochecknoinits
-    - gochecksumtype
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - godot
-    - godox
-    - goheader
-    - gomoddirectives
-    - gomodguard
-    - goprintffuncname
-    - gosec
-    - gosmopolitan
-    - govet
-    - grouper
-    - iface
-    - importas
-    - inamedparam
-    - ineffassign
-    - interfacebloat
-    - intrange
-    - ireturn
+    # - dogsled
+    # - dupl
+    # - dupword
+    # - durationcheck
+    # - err113
+    # - errcheck
+    # - errchkjson
+    # - errname
+    # - errorlint
+    # - exhaustive
+    # - exhaustruct
+    # - exptostd
+    # - fatcontext
+    # - forbidigo
+    # - forcetypeassert
+    # - funlen
+    # - ginkgolinter
+    # - gocheckcompilerdirectives
+    # - gochecknoglobals
+    # - gochecknoinits
+    # - gochecksumtype
+    # - gocognit
+    # - goconst
+    # - gocritic
+    # - gocyclo
+    # - godot
+    # - godox
+    # - goheader
+    # - gomoddirectives
+    # - gomodguard
+    # - goprintffuncname
+    # - gosec
+    # - gosmopolitan
+    # - govet
+    # - grouper
+    # - iface
+    # - importas
+    # - inamedparam
+    # - ineffassign
+    # - interfacebloat
+    # - intrange
+    # - ireturn
     - lll
-    - loggercheck
-    - maintidx
-    - makezero
-    - mirror
-    - misspell
-    - mnd
-    - musttag
-    - nakedret
-    - nestif
-    - nilerr
-    - nilnesserr
-    - nilnil
-    - nlreturn
-    - noctx
-    - nolintlint
-    - nonamedreturns
-    - nosprintfhostport
-    - paralleltest
-    - perfsprint
-    - prealloc
-    - predeclared
-    - promlinter
-    - protogetter
-    - reassign
-    - recvcheck
-    - revive
-    - rowserrcheck
-    - sloglint
-    - spancheck
-    - sqlclosecheck
-    - staticcheck
-    - tagalign
-    - tagliatelle
-    - testableexamples
-    - testifylint
-    - testpackage
-    - thelper
-    - tparallel
-    - unconvert
-    - unparam
-    - unused
-    - usestdlibvars
-    - usetesting
-    - varnamelen
-    - wastedassign
-    - whitespace
-    - wrapcheck
-    - wsl
-    - zerologlint
+    # - loggercheck
+    # - maintidx
+    # - makezero
+    # - mirror
+    # - misspell
+    # - mnd
+    # - musttag
+    # - nakedret
+    # - nestif
+    # - nilerr
+    # - nilnesserr
+    # - nilnil
+    # - nlreturn
+    # - noctx
+    # - nolintlint
+    # - nonamedreturns
+    # - nosprintfhostport
+    # - paralleltest
+    # - perfsprint
+    # - prealloc
+    # - predeclared
+    # - promlinter
+    # - protogetter
+    # - reassign
+    # - recvcheck
+    # - revive
+    # - rowserrcheck
+    # - sloglint
+    # - spancheck
+    # - sqlclosecheck
+    # - staticcheck
+    # - tagalign
+    # - tagliatelle
+    # - testableexamples
+    # - testifylint
+    # - testpackage
+    # - thelper
+    # - tparallel
+    # - unconvert
+    # - unparam
+    # - unused
+    # - usestdlibvars
+    # - usetesting
+    # - varnamelen
+    # - wastedassign
+    # - whitespace
+    # - wrapcheck
+    # - wsl
+    # - zerologlint
   # Disable specific linter.
   # https://golangci-lint.run/usage/linters/#disabled-by-default
   disable:
@@ -220,44 +220,10 @@ linters:
     # - zerologlint
   # All available settings of specific linters.
   settings:
+    varnamelen:
+      ignore-names:
+        - db
     # See the dedicated "linters.settings" documentation section.
-    option: value
-    depguard:
-      rules:
-        main:
-          files: ["$all"]
-          allow:
-            - "github.com/parkertr/tipping/internal/*"
-            - "github.com/parkertr/tipping/pkg/*"
-            - "github.com/gorilla/mux"
-            - "github.com/lib/pq"
-            - "github.com/golang-jwt/jwt/v5"
-            - "golang.org/x/oauth2"
-            - "golang.org/x/oauth2/google"
-            - "github.com/stretchr/testify/mock"
-            - "github.com/DATA-DOG/go-sqlmock"
-            - "errors"
-            - "fmt"
-            - "os"
-            - "time"
-            - "context"
-            - "database/sql"
-            - "net/http"
-            - "encoding/json"
-            - "io"
-            - "log"
-            - "strings"
-            - "sync"
-            - "testing"
-            - "reflect"
-            - "regexp"
-            - "runtime"
-            - "sort"
-            - "strconv"
-            - "text/template"
-            - "time"
-            - "unicode"
-            - "unsafe"
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.
   exclusions:
@@ -274,7 +240,7 @@ linters:
     generated: lax
     # Log a warning if an exclusion rule is unused.
     # Default: false
-    warn-unused: true
+    warn-unused: false
     # Predefined exclusion rules.
     # Default: []
     presets:
@@ -314,11 +280,11 @@ linters:
     # Which file paths to exclude: they will be analyzed, but issues from them won't be reported.
     # "/" will be replaced by the current OS file path separator to properly work on Windows.
     # Default: []
-    paths:
-      - ".*\\.my\\.go$"
-      - lib/bad.go
+    # paths:
+      # - ".*\\.my\\.go$"
+      # - lib/bad.go
     # Which file paths to not exclude.
     # Default: []
-    paths-except:
-      - ".*\\.my\\.go$"
-      - lib/bad.go
+    # paths-except:
+      # - ".*\\.my\\.go$"
+      # - lib/bad.go

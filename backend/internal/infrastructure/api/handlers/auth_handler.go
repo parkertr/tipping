@@ -26,7 +26,11 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates a new auth handler.
-func NewAuthHandler(userRepo repository.UserRepository, tokenManager *auth.TokenManager, eventStore EventStore) *AuthHandler {
+func NewAuthHandler(
+	userRepo repository.UserRepository,
+	tokenManager *auth.TokenManager,
+	eventStore EventStore,
+) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
 		tokenManager: tokenManager,
@@ -45,15 +49,15 @@ func NewAuthHandler(userRepo repository.UserRepository, tokenManager *auth.Token
 }
 
 // RegisterRoutes registers the auth handler routes.
-func (h *AuthHandler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/google", h.GoogleLogin).Methods("GET")
-	r.HandleFunc("/google/callback", h.GoogleCallback).Methods("GET")
-	r.HandleFunc("/refresh", h.RefreshToken).Methods("POST")
-	r.HandleFunc("/me", h.GetProfile).Methods("GET")
-	r.HandleFunc("/me", h.UpdateProfile).Methods("PUT")
-	r.HandleFunc("/me/deactivate", h.DeactivateProfile).Methods("POST")
-	r.HandleFunc("/me/stats", h.GetUserStats).Methods("GET")
-	r.HandleFunc("/me/ranking", h.GetUserRanking).Methods("GET")
+func (h *AuthHandler) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/google", h.GoogleLogin).Methods("GET")
+	router.HandleFunc("/google/callback", h.GoogleCallback).Methods("GET")
+	router.HandleFunc("/refresh", h.RefreshToken).Methods("POST")
+	router.HandleFunc("/me", h.GetProfile).Methods("GET")
+	router.HandleFunc("/me", h.UpdateProfile).Methods("PUT")
+	router.HandleFunc("/me/deactivate", h.DeactivateProfile).Methods("POST")
+	router.HandleFunc("/me/stats", h.GetUserStats).Methods("GET")
+	router.HandleFunc("/me/ranking", h.GetUserRanking).Methods("GET")
 }
 
 // GoogleLogin initiates the Google OAuth flow.
@@ -66,7 +70,7 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verified_email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
 	Name          string `json:"name"`
 	Picture       string `json:"picture"`
 }, error) {
@@ -76,18 +80,24 @@ func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*
 	}
 
 	client := h.oauthConfig.Client(ctx, token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 
+	// Get user info from Google
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
-
 	defer resp.Body.Close()
 
 	var userInfo struct {
 		ID            string `json:"id"`
 		Email         string `json:"email"`
-		VerifiedEmail bool   `json:"verified_email"`
+		VerifiedEmail bool   `json:"verifiedEmail"`
 		Name          string `json:"name"`
 		Picture       string `json:"picture"`
 	}
@@ -103,7 +113,7 @@ func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*
 func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verified_email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
 	Name          string `json:"name"`
 	Picture       string `json:"picture"`
 }) (*domain.User, error) {
@@ -156,24 +166,24 @@ func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
 }
 
 // GoogleCallback handles the Google OAuth callback.
-func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
+func (h *AuthHandler) GoogleCallback(writer http.ResponseWriter, request *http.Request) {
+	code := request.URL.Query().Get("code")
 	if code == "" {
-		http.Error(w, "code not found", http.StatusBadRequest)
+		http.Error(writer, "code not found", http.StatusBadRequest)
 
 		return
 	}
 
-	userInfo, err := h.getUserInfoFromGoogle(r.Context(), code)
+	userInfo, err := h.getUserInfoFromGoogle(request.Context(), code)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
 
 		return
 	}
 
-	user, err := h.createOrUpdateUser(r.Context(), userInfo)
+	user, err := h.createOrUpdateUser(request.Context(), userInfo)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
 
 		return
 	}
@@ -181,23 +191,28 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	// Generate JWT token
 	tokenString, err := h.tokenManager.GenerateToken(user.ID)
 	if err != nil {
-		http.Error(w, "failed to generate token", http.StatusInternalServerError)
+		http.Error(writer, "failed to generate token", http.StatusInternalServerError)
 
 		return
 	}
 
 	// Return token
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writer.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(writer).Encode(map[string]string{
 		"token": tokenString,
-	})
+	}); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
+
+		return
+	}
 }
 
 // RefreshToken refreshes a JWT token.
-func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
+func (h *AuthHandler) RefreshToken(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "user not found in context", http.StatusUnauthorized)
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
 
 		return
 	}
@@ -206,48 +221,53 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(request.Body).Decode(&req); err != nil {
+		http.Error(writer, "invalid request body", http.StatusBadRequest)
 
 		return
 	}
 
 	tokenString, err := h.tokenManager.RefreshToken(req.Token)
 	if err != nil {
-		http.Error(w, "failed to refresh token", http.StatusUnauthorized)
+		http.Error(writer, "failed to refresh token", http.StatusUnauthorized)
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writer.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(writer).Encode(map[string]string{
 		"token": tokenString,
-	})
+	}); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
+
+		return
+	}
 }
 
 // GetProfile returns the current user's profile.
-func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
+func (h *AuthHandler) GetProfile(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "user not found in context", http.StatusUnauthorized)
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	if err := json.NewEncoder(writer).Encode(user); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
 
 		return
 	}
 }
 
 // UpdateProfile updates the current user's profile.
-func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
+func (h *AuthHandler) UpdateProfile(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "user not found in context", http.StatusUnauthorized)
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
 
 		return
 	}
@@ -257,8 +277,8 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Picture string `json:"picture"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(request.Body).Decode(&update); err != nil {
+		http.Error(writer, "invalid request body", http.StatusBadRequest)
 
 		return
 	}
@@ -272,26 +292,26 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: user.UpdatedAt,
 	})
 
-	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "failed to save profile update event", http.StatusInternalServerError)
+	if err := h.eventStore.SaveEvent(request.Context(), event); err != nil {
+		http.Error(writer, "failed to save profile update event", http.StatusInternalServerError)
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	if err := json.NewEncoder(writer).Encode(user); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
 
 		return
 	}
 }
 
 // DeactivateProfile deactivates the current user's profile.
-func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
+func (h *AuthHandler) DeactivateProfile(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "user not found in context", http.StatusUnauthorized)
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
 
 		return
 	}
@@ -303,52 +323,52 @@ func (h *AuthHandler) DeactivateProfile(w http.ResponseWriter, r *http.Request) 
 		UpdatedAt: user.UpdatedAt,
 	})
 
-	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "failed to save deactivation event", http.StatusInternalServerError)
+	if err := h.eventStore.SaveEvent(request.Context(), event); err != nil {
+		http.Error(writer, "failed to save deactivation event", http.StatusInternalServerError)
 
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writer.WriteHeader(http.StatusOK)
 }
 
 // GetUserStats returns the current user's statistics.
-func (h *AuthHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
+func (h *AuthHandler) GetUserStats(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "user not found in context", http.StatusUnauthorized)
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(writer).Encode(map[string]interface{}{
 		"totalPoints":        user.Stats.TotalPoints,
 		"correctPredictions": user.Stats.CorrectPredictions,
 		"totalPredictions":   user.Stats.TotalPredictions,
 		"currentRank":        user.Stats.CurrentRank,
 		"successRate":        user.GetSuccessRate(),
 	}); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
 
 		return
 	}
 }
 
 // GetUserRanking returns the current user's ranking.
-func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*domain.User)
+func (h *AuthHandler) GetUserRanking(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
 	if !ok || user == nil {
-		http.Error(w, "user not found in context", http.StatusUnauthorized)
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
 
 		return
 	}
 
 	// Get all active users sorted by points
-	users, err := h.userRepo.List(r.Context(), true)
+	users, err := h.userRepo.List(request.Context(), true)
 	if err != nil {
-		http.Error(w, "failed to get user rankings", http.StatusInternalServerError)
+		http.Error(writer, "failed to get user rankings", http.StatusInternalServerError)
 
 		return
 	}
@@ -364,16 +384,52 @@ func (h *AuthHandler) GetUserRanking(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(writer).Encode(map[string]interface{}{
 		"position":    position,
 		"totalUsers":  len(users),
 		"currentRank": user.Stats.CurrentRank,
 		"totalPoints": user.Stats.TotalPoints,
 	}); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
 
 		return
 	}
+}
+
+type GoogleUserInfo struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
+	Name          string `json:"name"`
+	GivenName     string `json:"givenName"`
+	FamilyName    string `json:"familyName"`
+	Picture       string `json:"picture"`
+	Locale        string `json:"locale"`
+}
+
+type GoogleTokenResponse struct {
+	AccessToken string `json:"accessToken"`
+	IDToken     string `json:"idToken"`
+	ExpiresIn   int    `json:"expiresIn"`
+	TokenType   string `json:"tokenType"`
+	Scope       string `json:"scope"`
+}
+
+type GoogleUserInfoResponse struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
+	Name          string `json:"name"`
+	GivenName     string `json:"givenName"`
+	FamilyName    string `json:"familyName"`
+	Picture       string `json:"picture"`
+	Locale        string `json:"locale"`
+}
+
+type UserResponse struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
 }

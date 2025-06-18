@@ -10,13 +10,13 @@ import (
 func TestNewUser(t *testing.T) {
 	t.Parallel()
 
-	id := "user1"
+	userID := "user1"
 	email := "test@example.com"
 	name := "Test User"
 	picture := "https://example.com/picture.jpg"
 
 	user := &domain.User{
-		ID:        id,
+		ID:        userID,
 		GoogleID:  "google123",
 		Email:     email,
 		Name:      name,
@@ -32,8 +32,8 @@ func TestNewUser(t *testing.T) {
 		},
 	}
 
-	if user.ID != id {
-		t.Errorf("Expected ID %s, got %s", id, user.ID)
+	if user.ID != userID {
+		t.Errorf("Expected ID %s, got %s", userID, user.ID)
 	}
 
 	if user.Email != email {

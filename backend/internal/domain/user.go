@@ -87,3 +87,12 @@ func (user *User) GetSuccessRate() float64 {
 
 	return float64(user.Stats.CorrectPredictions) / float64(user.Stats.TotalPredictions) * 100
 }
+
+// GetAccuracy returns the user's prediction accuracy.
+func (user *User) GetAccuracy() float64 {
+	if user.Stats.TotalPredictions == 0 {
+		return 0
+	}
+
+	return float64(user.Stats.CorrectPredictions) / float64(user.Stats.TotalPredictions) * 100
+}

@@ -3,7 +3,6 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
@@ -36,17 +35,12 @@ func NewTokenManager() *TokenManager {
 
 // GenerateToken generates a new JWT token for a user.
 func (m *TokenManager) GenerateToken(userID string) (string, error) {
-	claims := &Claims{
-		UserID: userID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(utils.GetEnvOrDefaultDuration("JWT_EXPIRATION", constants.DefaultTokenExpiration))),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "tipping-app",
-			Subject:   userID,
-			ID:        strconv.FormatInt(time.Now().UnixNano(), 10),
-			Audience:  []string{"tipping-app"},
-		},
+	expiration := time.Now().Add(
+		utils.GetEnvOrDefaultDuration("JWT_EXPIRATION", constants.DefaultTokenExpiration),
+	)
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     expiration.Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -55,6 +49,7 @@ func (m *TokenManager) GenerateToken(userID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
+
 	return tokenString, nil
 }
 

@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/parkertr/tipping/internal/constants"
 	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/domain/constants"
+	"github.com/parkertr/tipping/internal/domain/events"
 	"github.com/parkertr/tipping/internal/infrastructure/eventhandlers"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
-	"github.com/parkertr/tipping/pkg/events"
+	pkgEvents "github.com/parkertr/tipping/pkg/events"
 	"github.com/parkertr/tipping/pkg/utils"
 )
 
@@ -64,31 +65,41 @@ type Score struct {
 }
 
 // CreateMatch handles the creation of a new match.
-func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
-	var request struct {
+func (h *MatchHandler) CreateMatch(writer http.ResponseWriter, request *http.Request) {
+	var matchRequest struct {
 		HomeTeam    string    `json:"homeTeam"`
 		AwayTeam    string    `json:"awayTeam"`
 		Date        time.Time `json:"date"`
 		Competition string    `json:"competition"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(request.Body).Decode(&matchRequest); err != nil {
+		http.Error(writer, "invalid request body", http.StatusBadRequest)
+		return
+	}
 
+	// Validate required fields
+	if matchRequest.HomeTeam == "" || matchRequest.AwayTeam == "" || matchRequest.Competition == "" {
+		http.Error(writer, "missing required fields", http.StatusBadRequest)
 		return
 	}
 
 	match := &domain.Match{
 		ID:          utils.GenerateID(),
-		HomeTeam:    request.HomeTeam,
-		AwayTeam:    request.AwayTeam,
-		Date:        request.Date,
-		Competition: request.Competition,
+		HomeTeam:    matchRequest.HomeTeam,
+		AwayTeam:    matchRequest.AwayTeam,
+		Date:        matchRequest.Date,
+		Competition: matchRequest.Competition,
 		Status:      domain.MatchStatusScheduled,
 		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
 	}
 
-	event := events.NewEvent("MatchCreated", events.MatchCreated{
+	if err := h.matchRepo.Create(request.Context(), match); err != nil {
+		http.Error(writer, "failed to create match", http.StatusInternalServerError)
+		return
+	}
+
+	event := pkgEvents.NewEvent("MatchCreated", events.MatchCreated{
 		ID:          match.ID,
 		HomeTeam:    match.HomeTeam,
 		AwayTeam:    match.AwayTeam,
@@ -96,62 +107,56 @@ func (h *MatchHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		Competition: match.Competition,
 	})
 
-	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "failed to create match", http.StatusInternalServerError)
-
+	if err := h.eventStore.SaveEvent(request.Context(), event); err != nil {
+		http.Error(writer, "failed to create match", http.StatusInternalServerError)
 		return
 	}
 
-	// Process event to update read model
-	if err := h.eventHandler.HandleEvent(r.Context(), event); err != nil {
-		fmt.Printf("Failed to process event for match creation: %v\n", err)
-		// Continue anyway since the event is saved
-	}
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusCreated)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(match); err != nil {
-		fmt.Printf("error encoding match: %v\n", err)
+	if err := json.NewEncoder(writer).Encode(match); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
+		return
 	}
 }
 
 // UpdateMatchScore handles updating a match's score.
-func (h *MatchHandler) UpdateMatchScore(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+func (h *MatchHandler) UpdateMatchScore(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
 	matchID := vars["id"]
 
-	var request struct {
+	var scoreRequest struct {
 		HomeGoals int `json:"homeGoals"`
 		AwayGoals int `json:"awayGoals"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(request.Body).Decode(&scoreRequest); err != nil {
+		http.Error(writer, "invalid request body", http.StatusBadRequest)
 
 		return
 	}
 
-	event := events.NewEvent("MatchScoreUpdated", events.MatchScoreUpdated{
+	event := pkgEvents.NewEvent("MatchScoreUpdated", events.MatchScoreUpdated{
 		MatchID:   matchID,
-		HomeGoals: request.HomeGoals,
-		AwayGoals: request.AwayGoals,
+		HomeGoals: scoreRequest.HomeGoals,
+		AwayGoals: scoreRequest.AwayGoals,
 		UpdatedAt: time.Now(),
 	})
 
-	if err := h.eventStore.SaveEvent(r.Context(), event); err != nil {
-		http.Error(w, "failed to update match score", http.StatusInternalServerError)
+	if err := h.eventStore.SaveEvent(request.Context(), event); err != nil {
+		http.Error(writer, "failed to update match score", http.StatusInternalServerError)
 
 		return
 	}
 
 	// Process event to update read model
-	if err := h.eventHandler.HandleEvent(r.Context(), event); err != nil {
+	if err := h.eventHandler.HandleEvent(request.Context(), event); err != nil {
 		fmt.Printf("Failed to process event for score update: %v\n", err)
 		// Continue anyway since the event is saved
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writer.WriteHeader(http.StatusOK)
 }
 
 // rebuildMatchFromEvents rebuilds a match from its event history.
@@ -185,7 +190,7 @@ func (h *MatchHandler) rebuildMatchFromEvents(ctx context.Context, matchID strin
 }
 
 // processMatchEvent processes a single match event.
-func (h *MatchHandler) processMatchEvent(match *domain.Match, event events.Event) error {
+func (h *MatchHandler) processMatchEvent(match *domain.Match, event pkgEvents.Event) error {
 	data, err := json.Marshal(event.Data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event data: %w", err)
@@ -193,14 +198,7 @@ func (h *MatchHandler) processMatchEvent(match *domain.Match, event events.Event
 
 	switch event.Type {
 	case "MatchCreated":
-		var matchCreated struct {
-			ID          string    `json:"id"`
-			HomeTeam    string    `json:"homeTeam"`
-			AwayTeam    string    `json:"awayTeam"`
-			Date        time.Time `json:"date"`
-			Competition string    `json:"competition"`
-		}
-
+		var matchCreated events.MatchCreated
 		if err := json.Unmarshal(data, &matchCreated); err != nil {
 			return fmt.Errorf("failed to unmarshal match created data: %w", err)
 		}
@@ -213,13 +211,7 @@ func (h *MatchHandler) processMatchEvent(match *domain.Match, event events.Event
 		match.Status = domain.MatchStatusScheduled
 
 	case "MatchScoreUpdated":
-		var scoreUpdated struct {
-			MatchID   string    `json:"matchId"`
-			HomeGoals int       `json:"homeGoals"`
-			AwayGoals int       `json:"awayGoals"`
-			UpdatedAt time.Time `json:"updatedAt"`
-		}
-
+		var scoreUpdated events.MatchScoreUpdated
 		if err := json.Unmarshal(data, &scoreUpdated); err != nil {
 			return fmt.Errorf("failed to unmarshal score updated data: %w", err)
 		}
@@ -231,92 +223,92 @@ func (h *MatchHandler) processMatchEvent(match *domain.Match, event events.Event
 }
 
 // GetMatch retrieves a match by ID.
-func (h *MatchHandler) GetMatch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+func (h *MatchHandler) GetMatch(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
 	matchID := vars["id"]
 
 	// Try to get from read model first
-	match, err := h.matchRepo.GetByID(r.Context(), matchID)
+	match, err := h.matchRepo.GetByID(request.Context(), matchID)
 	if err == nil {
-		h.writeMatchResponse(w, match)
+		h.writeMatchResponse(writer, match)
 
 		return
 	}
 
 	// Fallback to rebuilding from events if not in read model
-	match, err = h.rebuildMatchFromEvents(r.Context(), matchID)
+	match, err = h.rebuildMatchFromEvents(request.Context(), matchID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			http.Error(w, "match not found", http.StatusNotFound)
+			http.Error(writer, "match not found", http.StatusNotFound)
 
 			return
 		}
 
-		http.Error(w, "failed to retrieve match", http.StatusInternalServerError)
+		http.Error(writer, "failed to retrieve match", http.StatusInternalServerError)
 
 		return
 	}
 
-	h.writeMatchResponse(w, match)
+	h.writeMatchResponse(writer, match)
 }
 
 // writeMatchResponse writes the match response to the HTTP response.
-func (h *MatchHandler) writeMatchResponse(w http.ResponseWriter, match *domain.Match) {
-	w.Header().Set("Content-Type", "application/json")
+func (h *MatchHandler) writeMatchResponse(writer http.ResponseWriter, match *domain.Match) {
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(match); err != nil {
+	if err := json.NewEncoder(writer).Encode(match); err != nil {
 		fmt.Printf("error encoding match: %v\n", err)
 	}
 }
 
 // ListMatches retrieves all matches from the read model.
-func (h *MatchHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
+func (h *MatchHandler) ListMatches(writer http.ResponseWriter, request *http.Request) {
 	// Use read model for better performance and consistent date formatting
-	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{
+	matches, err := h.matchRepo.List(request.Context(), repository.MatchFilters{
 		Competition: nil,
 		StartDate:   nil,
 		EndDate:     nil,
 		Status:      nil,
 	})
 	if err != nil {
-		http.Error(w, "failed to retrieve matches", http.StatusInternalServerError)
+		http.Error(writer, "failed to retrieve matches", http.StatusInternalServerError)
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(matches); err != nil {
+	if err := json.NewEncoder(writer).Encode(matches); err != nil {
 		fmt.Printf("error encoding matches: %v\n", err)
 	}
 }
 
 // ListUpcomingMatches retrieves upcoming matches (scheduled matches).
-func (h *MatchHandler) ListUpcomingMatches(w http.ResponseWriter, r *http.Request) {
+func (h *MatchHandler) ListUpcomingMatches(writer http.ResponseWriter, request *http.Request) {
 	status := string(domain.MatchStatusScheduled)
 
 	// Use read model with filters for upcoming matches
 	// For demo purposes, we'll show all scheduled matches regardless of date
-	matches, err := h.matchRepo.List(r.Context(), repository.MatchFilters{
+	matches, err := h.matchRepo.List(request.Context(), repository.MatchFilters{
 		Status:      &status,
 		Competition: nil,
 		StartDate:   nil,
 		EndDate:     nil,
 	})
 	if err != nil {
-		http.Error(w, "failed to retrieve upcoming matches", http.StatusInternalServerError)
+		http.Error(writer, "failed to retrieve upcoming matches", http.StatusInternalServerError)
 
 		return
 	}
 
 	// Limit to next 5 matches for the home page
-	if len(matches) > 5 {
-		matches = matches[:5]
+	if len(matches) > constants.MaxUpcomingMatches {
+		matches = matches[:constants.MaxUpcomingMatches]
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(matches); err != nil {
+	if err := json.NewEncoder(writer).Encode(matches); err != nil {
 		fmt.Printf("error encoding upcoming matches: %v\n", err)
 	}
 }
