@@ -99,7 +99,7 @@ fmt: ## Format Go code
 
 lint: ## Run Go linter
 	@echo "Running linters..."
-	@cd backend && golangci-lint run
+	@cd backend && golangci-lint run --fix ./...
 
 mod-tidy: ## Tidy Go modules
 	cd backend && go mod tidy
