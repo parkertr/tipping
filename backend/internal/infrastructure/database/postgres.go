@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
 // NewPostgresDB creates a new PostgreSQL database connection.
