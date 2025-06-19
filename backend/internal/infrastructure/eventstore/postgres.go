@@ -159,6 +159,34 @@ func (store *PostgresEventStore) unmarshalEventData(event *events.Event, data []
 		}
 
 		event.Data = predictionMade
+	case "UserRegistered":
+		var userRegistered events.UserRegistered
+		if err := json.Unmarshal(data, &userRegistered); err != nil {
+			return fmt.Errorf("failed to unmarshal UserRegistered for event ID %s: %w", event.ID, err)
+		}
+
+		event.Data = userRegistered
+	case "UserProfileUpdated":
+		var userProfileUpdated events.UserProfileUpdated
+		if err := json.Unmarshal(data, &userProfileUpdated); err != nil {
+			return fmt.Errorf("failed to unmarshal UserProfileUpdated for event ID %s: %w", event.ID, err)
+		}
+
+		event.Data = userProfileUpdated
+	case "UserDeactivated":
+		var userDeactivated events.UserDeactivated
+		if err := json.Unmarshal(data, &userDeactivated); err != nil {
+			return fmt.Errorf("failed to unmarshal UserDeactivated for event ID %s: %w", event.ID, err)
+		}
+
+		event.Data = userDeactivated
+	case "UserPreferencesUpdated":
+		var userPreferencesUpdated events.UserPreferencesUpdated
+		if err := json.Unmarshal(data, &userPreferencesUpdated); err != nil {
+			return fmt.Errorf("failed to unmarshal UserPreferencesUpdated for event ID %s: %w", event.ID, err)
+		}
+
+		event.Data = userPreferencesUpdated
 	}
 
 	return nil

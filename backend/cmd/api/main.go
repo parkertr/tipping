@@ -12,6 +12,7 @@ import (
 	"github.com/parkertr/tipping/internal/constants"
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
 	"github.com/parkertr/tipping/internal/infrastructure/database"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
 	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"
 	"github.com/parkertr/tipping/pkg/auth"
 )
@@ -24,6 +25,12 @@ func main() {
 	}
 	defer database.CloseDB(db)
 
+	// Create eventstore
+	eventStore, err := eventstore.NewPostgresEventStore(db)
+	if err != nil {
+		log.Fatalf("Failed to create event store: %v", err)
+	}
+
 	// Create repositories
 	userRepo := postgres.NewUserRepository(db)
 	matchRepo := postgres.NewMatchRepository(db)
@@ -32,7 +39,7 @@ func main() {
 	tokenMgr := auth.NewTokenManager()
 
 	// Create server
-	srv := server.New(userRepo, matchRepo, tokenMgr)
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
 
 	// Create HTTP server
 	httpServer := &http.Server{

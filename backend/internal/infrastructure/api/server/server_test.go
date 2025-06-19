@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/api/server"
 	"github.com/parkertr/tipping/internal/infrastructure/repository"
 	"github.com/parkertr/tipping/pkg/auth"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 var (
@@ -30,11 +32,11 @@ func newMockUserRepo() *mockUserRepo {
 }
 
 func (m *mockUserRepo) GetByID(_ context.Context, id string) (*domain.User, error) {
-	if user, ok := m.users[id]; ok {
-		return user, nil
+	user, exists := m.users[id]
+	if !exists {
+		return nil, repository.ErrNotFound
 	}
-
-	return nil, nil
+	return user, nil
 }
 
 func (m *mockUserRepo) GetByEmail(_ context.Context, email string) (*domain.User, error) {
@@ -43,19 +45,16 @@ func (m *mockUserRepo) GetByEmail(_ context.Context, email string) (*domain.User
 			return user, nil
 		}
 	}
-
-	return nil, nil
+	return nil, repository.ErrNotFound
 }
 
 func (m *mockUserRepo) Create(_ context.Context, user *domain.User) error {
 	m.users[user.ID] = user
-
 	return nil
 }
 
 func (m *mockUserRepo) Update(_ context.Context, user *domain.User) error {
 	m.users[user.ID] = user
-
 	return nil
 }
 
@@ -66,7 +65,6 @@ func (m *mockUserRepo) List(_ context.Context, activeOnly bool) ([]*domain.User,
 			users = append(users, user)
 		}
 	}
-
 	return users, nil
 }
 
@@ -76,32 +74,29 @@ func (m *mockUserRepo) GetByGoogleID(_ context.Context, googleID string) (*domai
 			return user, nil
 		}
 	}
-
-	return nil, ErrUserNotFound
+	return nil, repository.ErrNotFound
 }
 
 func (m *mockUserRepo) UpdateStats(_ context.Context, userID string, points int, isCorrect bool) error {
-	if user, ok := m.users[userID]; ok {
-		user.Stats.TotalPoints += points
-		user.Stats.TotalPredictions++
-		if isCorrect {
-			user.Stats.CorrectPredictions++
-		}
-
-		return nil
+	user, exists := m.users[userID]
+	if !exists {
+		return repository.ErrNotFound
 	}
-
-	return ErrUserNotFound
+	user.Stats.TotalPoints += points
+	user.Stats.TotalPredictions++
+	if isCorrect {
+		user.Stats.CorrectPredictions++
+	}
+	return nil
 }
 
 func (m *mockUserRepo) UpdateRank(_ context.Context, userID string, rank int) error {
-	if user, ok := m.users[userID]; ok {
-		user.Stats.CurrentRank = rank
-
-		return nil
+	user, exists := m.users[userID]
+	if !exists {
+		return repository.ErrNotFound
 	}
-
-	return ErrUserNotFound
+	user.Stats.CurrentRank = rank
+	return nil
 }
 
 type mockMatchRepo struct {
@@ -115,11 +110,11 @@ func newMockMatchRepo() *mockMatchRepo {
 }
 
 func (m *mockMatchRepo) GetByID(_ context.Context, id string) (*domain.Match, error) {
-	if match, ok := m.matches[id]; ok {
-		return match, nil
+	match, exists := m.matches[id]
+	if !exists {
+		return nil, repository.ErrNotFound
 	}
-
-	return nil, nil
+	return match, nil
 }
 
 func (m *mockMatchRepo) List(_ context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
@@ -140,26 +135,65 @@ func (m *mockMatchRepo) List(_ context.Context, filters repository.MatchFilters)
 		}
 		matches = append(matches, match)
 	}
-
 	return matches, nil
 }
 
 func (m *mockMatchRepo) Create(_ context.Context, match *domain.Match) error {
 	m.matches[match.ID] = match
-
 	return nil
 }
 
 func (m *mockMatchRepo) Update(_ context.Context, match *domain.Match) error {
 	m.matches[match.ID] = match
-
 	return nil
 }
 
 func (m *mockMatchRepo) Delete(_ context.Context, id string) error {
 	delete(m.matches, id)
-
 	return nil
+}
+
+type mockEventStore struct {
+	events map[string]*events.Event
+}
+
+func newMockEventStore() *mockEventStore {
+	return &mockEventStore{
+		events: make(map[string]*events.Event),
+	}
+}
+
+func (m *mockEventStore) SaveEvent(_ context.Context, event *events.Event) error {
+	m.events[event.ID] = event
+	return nil
+}
+
+func (m *mockEventStore) GetEvents(_ context.Context, aggregateID string) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, event := range m.events {
+		result = append(result, event)
+	}
+	return result, nil
+}
+
+func (m *mockEventStore) GetEventsByType(_ context.Context, eventType string) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, event := range m.events {
+		if event.Type == eventType {
+			result = append(result, event)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockEventStore) GetEventsByTimeRange(_ context.Context, start, end time.Time) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, event := range m.events {
+		if event.Timestamp.After(start) && event.Timestamp.Before(end) {
+			result = append(result, event)
+		}
+	}
+	return result, nil
 }
 
 func TestServer_HealthCheck(t *testing.T) {
@@ -168,9 +202,10 @@ func TestServer_HealthCheck(t *testing.T) {
 	userRepo := newMockUserRepo()
 	matchRepo := newMockMatchRepo()
 	tokenMgr := auth.NewTokenManager()
-	srv := server.New(userRepo, matchRepo, tokenMgr)
+	eventStore := newMockEventStore()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	w := httptest.NewRecorder()
 
 	srv.Router.ServeHTTP(w, req)
@@ -184,49 +219,14 @@ func TestServer_HealthCheck(t *testing.T) {
 	}
 }
 
-func TestServer_Register(t *testing.T) {
-	t.Parallel()
-
-	userRepo := newMockUserRepo()
-	matchRepo := newMockMatchRepo()
-	tokenMgr := auth.NewTokenManager()
-	srv := server.New(userRepo, matchRepo, tokenMgr)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", nil)
-	w := httptest.NewRecorder()
-
-	srv.Router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("expected status code %d, got %d", http.StatusNotImplemented, w.Code)
-	}
-}
-
-func TestServer_Login(t *testing.T) {
-	t.Parallel()
-
-	userRepo := newMockUserRepo()
-	matchRepo := newMockMatchRepo()
-	tokenMgr := auth.NewTokenManager()
-	srv := server.New(userRepo, matchRepo, tokenMgr)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/login", nil)
-	w := httptest.NewRecorder()
-
-	srv.Router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("expected status code %d, got %d", http.StatusNotImplemented, w.Code)
-	}
-}
-
 func TestServerRoutes(t *testing.T) {
 	t.Parallel()
 
 	userRepo := newMockUserRepo()
 	matchRepo := newMockMatchRepo()
 	tokenMgr := auth.NewTokenManager()
-	srv := server.New(userRepo, matchRepo, tokenMgr)
+	eventStore := newMockEventStore()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
 
 	// Test routes
 	testCases := []struct {
@@ -234,16 +234,14 @@ func TestServerRoutes(t *testing.T) {
 		path   string
 		code   int
 	}{
-		{"GET", "/api/v1/health", http.StatusOK},
-		{"POST", "/api/v1/users", http.StatusNotImplemented},
-		{"POST", "/api/v1/users/login", http.StatusNotImplemented},
-		{"GET", "/api/v1/users/me", http.StatusUnauthorized},
-		{"PUT", "/api/v1/users/me", http.StatusUnauthorized},
-		{"GET", "/api/v1/matches", http.StatusUnauthorized},
-		{"POST", "/api/v1/matches", http.StatusUnauthorized},
-		{"GET", "/api/v1/matches/123", http.StatusUnauthorized},
-		{"PUT", "/api/v1/matches/123", http.StatusUnauthorized},
-		{"DELETE", "/api/v1/matches/123", http.StatusUnauthorized},
+		{"GET", "/api/health", http.StatusOK},
+		{"GET", "/api/auth/google", http.StatusTemporaryRedirect},
+		{"GET", "/api/auth/me", http.StatusUnauthorized},
+		{"PUT", "/api/auth/me", http.StatusUnauthorized},
+		{"POST", "/api/predictions", http.StatusUnauthorized},
+		{"GET", "/api/predictions/me", http.StatusUnauthorized},
+		{"GET", "/api/matches/123/predictions", http.StatusUnauthorized},
+		{"GET", "/api/matches/123/predictions/me", http.StatusUnauthorized},
 	}
 
 	for _, testCase := range testCases {
@@ -267,7 +265,8 @@ func TestMiddleware(t *testing.T) {
 	userRepo := newMockUserRepo()
 	matchRepo := newMockMatchRepo()
 	tokenMgr := auth.NewTokenManager()
-	srv := server.New(userRepo, matchRepo, tokenMgr)
+	eventStore := newMockEventStore()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
 
 	// Test cases
 	testCases := []struct {
@@ -278,25 +277,25 @@ func TestMiddleware(t *testing.T) {
 	}{
 		{
 			name:           "No auth header",
-			path:           "/api/v1/users/me",
+			path:           "/api/auth/me",
 			authHeader:     "",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Invalid auth header format",
-			path:           "/api/v1/users/me",
+			path:           "/api/auth/me",
 			authHeader:     "Invalid",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Invalid token",
-			path:           "/api/v1/users/me",
+			path:           "/api/auth/me",
 			authHeader:     "Bearer invalid-token",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Valid token but user not found",
-			path:           "/api/v1/users/me",
+			path:           "/api/auth/me",
 			authHeader:     "Bearer valid-token",
 			expectedStatus: http.StatusUnauthorized,
 		},

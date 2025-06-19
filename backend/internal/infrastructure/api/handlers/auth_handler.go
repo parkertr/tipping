@@ -59,6 +59,8 @@ func (h *AuthHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/me/deactivate", h.DeactivateProfile).Methods("POST")
 	router.HandleFunc("/me/stats", h.GetUserStats).Methods("GET")
 	router.HandleFunc("/me/ranking", h.GetUserRanking).Methods("GET")
+	router.HandleFunc("/me/predictions", h.GetUserPredictions).Methods("GET")
+	router.HandleFunc("/me/preferences", h.UpdateUserPreferences).Methods("PUT")
 }
 
 // GoogleLogin initiates the Google OAuth flow.
@@ -399,6 +401,111 @@ func (h *AuthHandler) GetUserRanking(writer http.ResponseWriter, request *http.R
 	}); err != nil {
 		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
 
+		return
+	}
+}
+
+// GetUserPredictions returns the current user's prediction history.
+func (h *AuthHandler) GetUserPredictions(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Get all prediction events for this user
+	events, err := h.eventStore.GetEventsByType(request.Context(), "PredictionMade")
+	if err != nil {
+		http.Error(writer, "failed to retrieve predictions", http.StatusInternalServerError)
+		return
+	}
+
+	var predictions []map[string]interface{}
+	for _, event := range events {
+		// Unmarshal the event data
+		data, err := json.Marshal(event.Data)
+		if err != nil {
+			continue
+		}
+
+		var predictionData struct {
+			ID        string    `json:"id"`
+			UserID    string    `json:"userId"`
+			MatchID   string    `json:"matchId"`
+			HomeGoals int       `json:"homeGoals"`
+			AwayGoals int       `json:"awayGoals"`
+			CreatedAt time.Time `json:"createdAt"`
+		}
+
+		if err := json.Unmarshal(data, &predictionData); err != nil {
+			continue
+		}
+
+		// Only include predictions for this user
+		if predictionData.UserID == user.ID {
+			predictions = append(predictions, map[string]interface{}{
+				"id":        predictionData.ID,
+				"matchId":   predictionData.MatchID,
+				"homeGoals": predictionData.HomeGoals,
+				"awayGoals": predictionData.AwayGoals,
+				"createdAt": predictionData.CreatedAt,
+				"points":    0, // TODO: Calculate points based on match results
+			})
+		}
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(writer).Encode(map[string]interface{}{
+		"predictions": predictions,
+		"total":       len(predictions),
+	}); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// UpdateUserPreferences updates the current user's preferences/settings.
+func (h *AuthHandler) UpdateUserPreferences(writer http.ResponseWriter, request *http.Request) {
+	user, ok := request.Context().Value("user").(*domain.User)
+	if !ok || user == nil {
+		http.Error(writer, "user not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	var preferences struct {
+		EmailNotifications bool   `json:"emailNotifications"`
+		Timezone           string `json:"timezone"`
+		Language           string `json:"language"`
+	}
+
+	if err := json.NewDecoder(request.Body).Decode(&preferences); err != nil {
+		http.Error(writer, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Update user preferences (extend User domain model to include preferences)
+	// For now, we'll store this as a simple event
+	event := events.NewEvent("UserPreferencesUpdated", events.UserPreferencesUpdated{
+		UserID:             user.ID,
+		EmailNotifications: preferences.EmailNotifications,
+		Timezone:           preferences.Timezone,
+		Language:           preferences.Language,
+		UpdatedAt:          time.Now(),
+	})
+
+	if err := h.eventStore.SaveEvent(request.Context(), event); err != nil {
+		http.Error(writer, "failed to save preferences", http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(writer).Encode(map[string]interface{}{
+		"message":            "preferences updated successfully",
+		"emailNotifications": preferences.EmailNotifications,
+		"timezone":           preferences.Timezone,
+		"language":           preferences.Language,
+	}); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }

@@ -79,6 +79,15 @@ type UserDeactivated struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// UserPreferencesUpdated represents a user preferences update event.
+type UserPreferencesUpdated struct {
+	UserID             string    `json:"userId"`
+	EmailNotifications bool      `json:"emailNotifications"`
+	Timezone           string    `json:"timezone"`
+	Language           string    `json:"language"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
 // NewEvent creates a new event instance.
 func NewEvent(eventType string, data interface{}) *Event {
 	return &Event{

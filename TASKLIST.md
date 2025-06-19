@@ -209,22 +209,22 @@ A football tipping application built with Go backend, React frontend, PostgreSQL
   - [x] Update all axios calls to include authentication headers
   - [x] Handle 401 responses with automatic logout
 
-### Phase 3: Database & API Updates 🟡
+### Phase 3: Database & API Updates ✅
 #### 3.1 Update Existing Models
-- [ ] Modify prediction system for real users
-  - [ ] Update `Prediction` domain model to use real user IDs
-  - [ ] Migrate existing predictions to use proper user references
-  - [ ] Update prediction handlers to validate user ownership
-- [ ] Update API endpoints for user context
-  - [ ] Protect prediction endpoints with authentication middleware
-  - [ ] Filter predictions by authenticated user
-  - [ ] Validate user permissions for prediction operations
+- [x] Modify prediction system for real users
+  - [x] Update `Prediction` domain model to use real user IDs
+  - [x] Migrate existing predictions to use proper user references
+  - [x] Update prediction handlers to validate user ownership
+- [x] Update API endpoints for user context
+  - [x] Protect prediction endpoints with authentication middleware
+  - [x] Filter predictions by authenticated user
+  - [x] Validate user permissions for prediction operations
 
 #### 3.2 User Profile Management
-- [ ] Enhanced user profile API
-  - [ ] `GET /api/users/me/stats` - User statistics (predictions, points, rank)
-  - [ ] `GET /api/users/me/predictions` - User's prediction history
-  - [ ] `PUT /api/users/me/preferences` - User preferences/settings
+- [x] Enhanced user profile API
+  - [x] `GET /api/auth/me/stats` - User statistics (predictions, points, rank)
+  - [x] `GET /api/auth/me/predictions` - User's prediction history
+  - [x] `PUT /api/auth/me/preferences` - User preferences/settings
 - [ ] Admin user management (future)
   - [ ] `GET /api/admin/users` - List all users (admin only)
   - [ ] `PUT /api/admin/users/{id}/status` - Activate/deactivate users

@@ -12,6 +12,7 @@ import (
 	"github.com/parkertr/tipping/internal/domain"
 	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
 	"github.com/parkertr/tipping/internal/infrastructure/api/handlers/testutil"
+	"github.com/parkertr/tipping/internal/infrastructure/api/middleware"
 )
 
 func TestCreatePrediction(t *testing.T) {
@@ -23,6 +24,15 @@ func TestCreatePrediction(t *testing.T) {
 
 	// Create handler
 	handler := handlers.NewPredictionHandler(eventStore, matchRepo)
+
+	// Create test user
+	testUser := &domain.User{
+		ID:       "user1",
+		GoogleID: "google123",
+		Email:    "test@example.com",
+		Name:     "Test User",
+		Picture:  "https://example.com/avatar.jpg",
+	}
 
 	t.Run("Valid prediction creation", func(t *testing.T) {
 		t.Parallel()
@@ -41,9 +51,8 @@ func TestCreatePrediction(t *testing.T) {
 			t.Fatalf("Failed to create test match: %v", err)
 		}
 
-		// Create request
+		// Create request (no UserID in body anymore)
 		createPredictionRequest := handlers.CreatePredictionRequest{
-			UserID:    "user1",
 			MatchID:   match.ID,
 			HomeGoals: 2,
 			AwayGoals: 1,
@@ -52,8 +61,12 @@ func TestCreatePrediction(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to marshal request: %v", err)
 		}
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/predictions", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(reqBody))
 		req.Header.Set("Content-Type", "application/json")
+
+		// Add user to context (simulate authentication middleware)
+		ctx := context.WithValue(req.Context(), middleware.UserContextKey, testUser)
+		req = req.WithContext(ctx)
 
 		// Handle request
 		rr := httptest.NewRecorder()
@@ -85,7 +98,6 @@ func TestCreatePrediction(t *testing.T) {
 
 		// Create request
 		createPredictionRequest := handlers.CreatePredictionRequest{
-			UserID:    "user1",
 			MatchID:   "nonexistent",
 			HomeGoals: 2,
 			AwayGoals: 1,
@@ -94,8 +106,12 @@ func TestCreatePrediction(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to marshal request: %v", err)
 		}
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/predictions", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(reqBody))
 		req.Header.Set("Content-Type", "application/json")
+
+		// Add user to context
+		ctx := context.WithValue(req.Context(), middleware.UserContextKey, testUser)
+		req = req.WithContext(ctx)
 
 		// Handle request
 		rr := httptest.NewRecorder()
@@ -111,8 +127,12 @@ func TestCreatePrediction(t *testing.T) {
 		t.Parallel()
 
 		// Create request with invalid JSON
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/predictions", bytes.NewBufferString("invalid json"))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBufferString("invalid json"))
 		req.Header.Set("Content-Type", "application/json")
+
+		// Add user to context
+		ctx := context.WithValue(req.Context(), middleware.UserContextKey, testUser)
+		req = req.WithContext(ctx)
 
 		// Handle request
 		rr := httptest.NewRecorder()
@@ -127,19 +147,22 @@ func TestCreatePrediction(t *testing.T) {
 	t.Run("Missing required fields", func(t *testing.T) {
 		t.Parallel()
 
-		// Create request with missing UserID
+		// Create request with missing MatchID
 		createPredictionRequest := handlers.CreatePredictionRequest{
-			MatchID:   "match1",
 			HomeGoals: 2,
 			AwayGoals: 1,
-			// Missing UserID
+			// Missing MatchID
 		}
 		reqBody, err := json.Marshal(createPredictionRequest)
 		if err != nil {
 			t.Fatalf("Failed to marshal request: %v", err)
 		}
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/predictions", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(reqBody))
 		req.Header.Set("Content-Type", "application/json")
+
+		// Add user to context
+		ctx := context.WithValue(req.Context(), middleware.UserContextKey, testUser)
+		req = req.WithContext(ctx)
 
 		// Handle request
 		rr := httptest.NewRecorder()
@@ -148,6 +171,34 @@ func TestCreatePrediction(t *testing.T) {
 		// Check response
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("expected status code %d, got %d", http.StatusBadRequest, rr.Code)
+		}
+	})
+
+	t.Run("User not authenticated", func(t *testing.T) {
+		t.Parallel()
+
+		// Create request
+		createPredictionRequest := handlers.CreatePredictionRequest{
+			MatchID:   "match1",
+			HomeGoals: 2,
+			AwayGoals: 1,
+		}
+		reqBody, err := json.Marshal(createPredictionRequest)
+		if err != nil {
+			t.Fatalf("Failed to marshal request: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/predictions", bytes.NewBuffer(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Don't add user to context (simulate unauthenticated request)
+
+		// Handle request
+		rr := httptest.NewRecorder()
+		handler.CreatePrediction(rr, req)
+
+		// Check response
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected status code %d, got %d", http.StatusUnauthorized, rr.Code)
 		}
 	})
 }
