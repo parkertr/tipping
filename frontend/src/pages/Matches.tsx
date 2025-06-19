@@ -1,7 +1,8 @@
 import React, { useState, ChangeEvent, useEffect } from 'react'
 import { Container, Typography, Paper, Grid, Button, TextField } from '@mui/material'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
+import api from '../utils/auth'
 
 interface Match {
   id: string
@@ -25,14 +26,14 @@ const Matches: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null)
   const [prediction, setPrediction] = useState('')
   const [userPredictions, setUserPredictions] = useState<Record<string, Prediction>>({})
+  const { user } = useAuth()
 
-  // TODO: Replace with actual user ID from authentication
-  const currentUserId = 'user123'
+  const currentUserId = user?.id
 
   const { data: matches, isLoading } = useQuery<Match[]>({
     queryKey: ['matches'],
     queryFn: async () => {
-      const response = await axios.get('/api/matches')
+      const response = await api.get('/matches')
       return response.data
     },
   })
@@ -40,13 +41,13 @@ const Matches: React.FC = () => {
   // Fetch user predictions for all matches
   useEffect(() => {
     const fetchPredictions = async () => {
-      if (!matches) return
+      if (!matches || !currentUserId) return
 
       const predictions: Record<string, Prediction> = {}
 
       for (const match of matches) {
         try {
-          const response = await axios.get(`/api/matches/${match.id}/predictions/${currentUserId}`)
+          const response = await api.get(`/matches/${match.id}/predictions/${currentUserId}`)
           predictions[match.id] = response.data
         } catch (error) {
           // No prediction found for this match, which is fine
@@ -75,7 +76,7 @@ const Matches: React.FC = () => {
       }
 
       // Use the correct API endpoint and format
-      const response = await axios.post('/api/predictions', {
+      const response = await api.post('/predictions', {
         userId: currentUserId,
         matchId,
         homeGoals,

@@ -1,56 +1,46 @@
 import { useState } from 'react'
-import { Container, Typography, Paper, Grid, TextField, Button, List, ListItem, ListItemText } from '@mui/material'
+import { Container, Typography, Paper, Grid, TextField, Button, List, ListItem, ListItemText, Avatar, Box } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
+import api from '../utils/auth'
 
-interface UserProfile {
-  username: string
-  email: string
-  joinDate: string
-  stats: {
-    totalPoints: number
-    correctPredictions: number
-    totalPredictions: number
-    currentRank: number
-  }
-  recentPredictions: {
-    matchId: string
-    homeTeam: string
-    awayTeam: string
-    prediction: string
-    result: string
-    points: number
-  }[]
-}
+// Removed unused UserProfile interface
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false)
-  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const { user, updateProfile: updateAuthProfile } = useAuth()
   const queryClient = useQueryClient()
 
-  const { data: profile, isLoading } = useQuery<UserProfile>({
-    queryKey: ['profile'],
+  // Initialize form with user data
+  useState(() => {
+    if (user) {
+      setName(user.name)
+    }
+  })
+
+  const { data: userStats, isLoading } = useQuery({
+    queryKey: ['userStats'],
     queryFn: async () => {
-      const response = await axios.get('/api/profile')
-      setEmail(response.data.email)
+      const response = await api.get('/auth/me/stats')
       return response.data
     },
   })
 
   const updateProfile = useMutation({
-    mutationFn: async (newEmail: string) => {
-      const response = await axios.put('/api/profile', { email: newEmail })
-      return response.data
+    mutationFn: async (updates: { name: string }) => {
+      await updateAuthProfile(updates)
+      return updates
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['userStats'] })
       setIsEditing(false)
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    updateProfile.mutate(email)
+    updateProfile.mutate({ name })
   }
 
   if (isLoading) {
@@ -69,32 +59,52 @@ const Profile = () => {
             <Typography variant="h5" gutterBottom>
               User Information
             </Typography>
-            <Typography>Username: {profile?.username}</Typography>
-            <Typography>Join Date: {new Date(profile?.joinDate || '').toLocaleDateString()}</Typography>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Avatar
+                src={user?.pictureUrl}
+                alt={user?.name}
+                sx={{ width: 64, height: 64, mr: 2 }}
+              />
+              <Box>
+                <Typography variant="h6">{user?.name}</Typography>
+                <Typography color="text.secondary">{user?.email}</Typography>
+              </Box>
+            </Box>
 
             {isEditing ? (
               <form onSubmit={handleSubmit}>
                 <TextField
                   fullWidth
-                  label="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  label="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   margin="normal"
                 />
-                <Button type="submit" variant="contained" sx={{ mr: 1 }}>
-                  Save
-                </Button>
-                <Button variant="outlined" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </Button>
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    sx={{ mr: 1 }}
+                    disabled={updateProfile.isPending}
+                  >
+                    {updateProfile.isPending ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setName(user?.name || '')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
               </form>
             ) : (
-              <>
-                <Typography>Email: {profile?.email}</Typography>
-                <Button variant="outlined" onClick={() => setIsEditing(true)} sx={{ mt: 2 }}>
-                  Edit Profile
-                </Button>
-              </>
+              <Button variant="outlined" onClick={() => setIsEditing(true)} sx={{ mt: 2 }}>
+                Edit Profile
+              </Button>
             )}
           </Paper>
         </Grid>
@@ -104,10 +114,22 @@ const Profile = () => {
             <Typography variant="h5" gutterBottom>
               Statistics
             </Typography>
-            <Typography>Total Points: {profile?.stats.totalPoints}</Typography>
-            <Typography>Correct Predictions: {profile?.stats.correctPredictions}</Typography>
-            <Typography>Success Rate: {((profile?.stats.correctPredictions || 0) / (profile?.stats.totalPredictions || 1) * 100).toFixed(1)}%</Typography>
-            <Typography>Current Rank: {profile?.stats.currentRank}</Typography>
+            {isLoading ? (
+              <Typography>Loading stats...</Typography>
+            ) : (
+              <>
+                <Typography>Total Points: {userStats?.totalPoints || 0}</Typography>
+                <Typography>Correct Predictions: {userStats?.correctPredictions || 0}</Typography>
+                <Typography>
+                  Success Rate: {
+                    userStats?.totalPredictions > 0
+                      ? ((userStats.correctPredictions / userStats.totalPredictions) * 100).toFixed(1)
+                      : 0
+                  }%
+                </Typography>
+                <Typography>Current Rank: {userStats?.currentRank || 'Unranked'}</Typography>
+              </>
+            )}
           </Paper>
         </Grid>
 
@@ -116,16 +138,24 @@ const Profile = () => {
             <Typography variant="h5" gutterBottom>
               Recent Predictions
             </Typography>
-            <List>
-              {profile?.recentPredictions.map((prediction) => (
-                <ListItem key={prediction.matchId}>
-                  <ListItemText
-                    primary={`${prediction.homeTeam} vs ${prediction.awayTeam}`}
-                    secondary={`Prediction: ${prediction.prediction} | Result: ${prediction.result} | Points: ${prediction.points}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            {isLoading ? (
+              <Typography>Loading predictions...</Typography>
+            ) : userStats?.recentPredictions?.length > 0 ? (
+              <List>
+                {userStats.recentPredictions.map((prediction: any, index: number) => (
+                  <ListItem key={`${prediction.matchId}-${index}`}>
+                    <ListItemText
+                      primary={`${prediction.homeTeam} vs ${prediction.awayTeam}`}
+                      secondary={`Prediction: ${prediction.prediction} | Result: ${prediction.result || 'Pending'} | Points: ${prediction.points || 0}`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Typography color="text.secondary">
+                No predictions yet. Start making predictions on upcoming matches!
+              </Typography>
+            )}
           </Paper>
         </Grid>
       </Grid>
