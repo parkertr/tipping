@@ -9,8 +9,8 @@ import Matches from './pages/Matches'
 import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
 
-// Temporary hardcoded value - will be replaced with proper env var later
-const GOOGLE_CLIENT_ID = 'placeholder-client-id'
+// Get Google Client ID from environment variables
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder-client-id'
 
 function App() {
   return (
