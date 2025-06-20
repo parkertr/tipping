@@ -25,6 +25,25 @@ type Server struct {
 	eventStore eventstore.EventStore
 }
 
+// CORS middleware to handle cross-origin requests
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // New creates a new server instance.
 func New(
 	userRepo repository.UserRepository,
@@ -33,6 +52,10 @@ func New(
 	eventStore eventstore.EventStore,
 ) *Server {
 	router := mux.NewRouter()
+
+	// Add CORS middleware to all routes
+	router.Use(corsMiddleware)
+
 	s := &Server{
 		Router:     router,
 		userRepo:   userRepo,
@@ -76,24 +99,34 @@ func (s *Server) registerRoutes() {
 	predictionHandler := handlers.NewPredictionHandler(s.eventStore, s.matchRepo)
 
 	// Public routes (no authentication required)
-	api := s.Router.PathPrefix("/api").Subrouter()
+	s.Router.HandleFunc("/api/health", s.healthCheck).Methods(http.MethodGet)
 
-	// Health check
-	api.HandleFunc("/health", s.healthCheck).Methods(http.MethodGet)
+	// Public match routes (viewing matches doesn't require auth)
+	s.Router.HandleFunc("/api/matches", matchHandler.ListMatches).Methods("GET")
+	s.Router.HandleFunc("/api/matches/{id}", matchHandler.GetMatch).Methods("GET")
 
-	// Auth routes
-	authRoutes := api.PathPrefix("/auth").Subrouter()
+	// Auth routes (public)
+	authRoutes := s.Router.PathPrefix("/api/auth").Subrouter()
 	authHandler.RegisterRoutes(authRoutes)
 
-	// Protected routes (authentication required)
-	protected := api.PathPrefix("/").Subrouter()
-	protected.Use(middleware.AuthMiddleware(s.tokenMgr, s.userRepo))
+	// Protected routes use a different prefix to avoid conflicts
+	protectedAPI := s.Router.PathPrefix("/api/protected").Subrouter()
+	protectedAPI.Use(middleware.AuthMiddleware(s.tokenMgr, s.userRepo))
 
-	// Match routes
-	matchHandler.RegisterRoutes(protected)
+	// Protected match routes (creating/updating matches requires auth)
+	protectedAPI.HandleFunc("/matches", matchHandler.CreateMatch).Methods("POST")
+	protectedAPI.HandleFunc("/matches/{id}/score", matchHandler.UpdateMatchScore).Methods("PUT")
 
-	// Prediction routes (these will be updated to use authenticated user)
-	predictionHandler.RegisterRoutes(protected)
+	// Prediction routes (all require authentication) - also need to update the handler to use /api/protected
+	s.registerPredictionRoutes(protectedAPI, predictionHandler)
+}
+
+// registerPredictionRoutes registers prediction routes with authentication
+func (s *Server) registerPredictionRoutes(r *mux.Router, handler *handlers.PredictionHandler) {
+	r.HandleFunc("/predictions", handler.CreatePrediction).Methods("POST")
+	r.HandleFunc("/predictions/me", handler.GetUserPredictions).Methods("GET")
+	r.HandleFunc("/matches/{matchId}/predictions", handler.GetMatchPredictions).Methods("GET")
+	r.HandleFunc("/matches/{matchId}/predictions/me", handler.GetUserPredictionForMatch).Methods("GET")
 }
 
 // healthCheck handles the health check endpoint.

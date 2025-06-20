@@ -9,8 +9,8 @@ import Matches from './pages/Matches'
 import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
 
-// TODO: Replace with your actual Google Client ID from environment variable
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id'
+// Temporary hardcoded value - will be replaced with proper env var later
+const GOOGLE_CLIENT_ID = 'placeholder-client-id'
 
 function App() {
   return (
@@ -21,14 +21,7 @@ function App() {
           <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route
-                path="/matches"
-                element={
-                  <ProtectedRoute>
-                    <Matches />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/matches" element={<Matches />} />
               <Route
                 path="/leaderboard"
                 element={

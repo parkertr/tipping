@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -53,6 +55,7 @@ func NewAuthHandler(
 func (h *AuthHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/google", h.GoogleLogin).Methods("GET")
 	router.HandleFunc("/google/callback", h.GoogleCallback).Methods("GET")
+	router.HandleFunc("/google/callback", h.GoogleCredentialCallback).Methods("POST") // New credential-based flow
 	router.HandleFunc("/refresh", h.RefreshToken).Methods("POST")
 	router.HandleFunc("/me", h.GetProfile).Methods("GET")
 	router.HandleFunc("/me", h.UpdateProfile).Methods("PUT")
@@ -114,6 +117,105 @@ func (h *AuthHandler) getUserInfoFromGoogle(ctx context.Context, code string) (*
 	}
 
 	return &userInfo, nil
+}
+
+// GoogleCredentialCallback handles the Google credential-based authentication (for frontend)
+func (h *AuthHandler) GoogleCredentialCallback(writer http.ResponseWriter, request *http.Request) {
+	var req struct {
+		Credential string `json:"credential"`
+	}
+
+	if err := json.NewDecoder(request.Body).Decode(&req); err != nil {
+		http.Error(writer, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Credential == "" {
+		http.Error(writer, "credential is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the JWT credential from Google
+	// Note: In production, you should verify the JWT signature
+	// For now, we'll decode it to get user info
+	userInfo, err := h.parseGoogleCredential(req.Credential)
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("failed to parse credential: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.createOrUpdateUser(request.Context(), userInfo)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Generate JWT token
+	tokenString, err := h.tokenManager.GenerateToken(user.ID)
+	if err != nil {
+		http.Error(writer, "failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	// Return both user and token
+	writer.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(writer).Encode(map[string]interface{}{
+		"user":  user,
+		"token": tokenString,
+	}); err != nil {
+		http.Error(writer, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// parseGoogleCredential parses the Google ID token credential
+func (h *AuthHandler) parseGoogleCredential(credential string) (*struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verifiedEmail"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}, error) {
+	// Note: This is a simplified implementation
+	// In production, you should verify the JWT signature using Google's public keys
+
+	// For now, we'll decode the JWT payload (base64 encoded)
+	parts := strings.Split(credential, ".")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid JWT format")
+	}
+
+	// Decode the payload (second part)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims struct {
+		Sub           string `json:"sub"`
+		Email         string `json:"email"`
+		EmailVerified bool   `json:"email_verified"`
+		Name          string `json:"name"`
+		Picture       string `json:"picture"`
+	}
+
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JWT claims: %w", err)
+	}
+
+	return &struct {
+		ID            string `json:"id"`
+		Email         string `json:"email"`
+		VerifiedEmail bool   `json:"verifiedEmail"`
+		Name          string `json:"name"`
+		Picture       string `json:"picture"`
+	}{
+		ID:            claims.Sub,
+		Email:         claims.Email,
+		VerifiedEmail: claims.EmailVerified,
+		Name:          claims.Name,
+		Picture:       claims.Picture,
+	}, nil
 }
 
 // createOrUpdateUser creates a new user or updates an existing one.

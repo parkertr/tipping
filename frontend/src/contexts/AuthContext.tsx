@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Store the JWT token in a secure cookie
         Cookies.set('auth_token', token, {
           expires: 7, // 7 days
-          secure: process.env.NODE_ENV === 'production',
+          secure: false, // Set to true in production
           sameSite: 'strict'
         })
 
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         Cookies.set('auth_token', token, {
           expires: 7,
-          secure: process.env.NODE_ENV === 'production',
+          secure: false, // Set to true in production
           sameSite: 'strict'
         })
       } else {
