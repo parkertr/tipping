@@ -235,13 +235,14 @@ func TestServerRoutes(t *testing.T) {
 		code   int
 	}{
 		{"GET", "/api/health", http.StatusOK},
+		{"GET", "/api/matches", http.StatusOK}, // Public route
 		{"GET", "/api/auth/google", http.StatusTemporaryRedirect},
 		{"GET", "/api/auth/me", http.StatusUnauthorized},
 		{"PUT", "/api/auth/me", http.StatusUnauthorized},
-		{"POST", "/api/predictions", http.StatusUnauthorized},
-		{"GET", "/api/predictions/me", http.StatusUnauthorized},
-		{"GET", "/api/matches/123/predictions", http.StatusUnauthorized},
-		{"GET", "/api/matches/123/predictions/me", http.StatusUnauthorized},
+		{"POST", "/api/protected/predictions", http.StatusUnauthorized},
+		{"GET", "/api/protected/predictions/me", http.StatusUnauthorized},
+		{"GET", "/api/protected/matches/123/predictions", http.StatusUnauthorized},
+		{"GET", "/api/protected/matches/123/predictions/me", http.StatusUnauthorized},
 	}
 
 	for _, testCase := range testCases {
