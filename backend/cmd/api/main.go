@@ -2,60 +2,68 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	_ "github.com/lib/pq"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/constants"
+	"github.com/parkertr/tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/infrastructure/database"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr/tipping/internal/infrastructure/repository/postgres"
+	"github.com/parkertr/tipping/pkg/auth"
 )
 
 func main() {
-	// Get database connection string from environment variable or use default
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/footy_tipping?sslmode=disable"
-	}
-
 	// Connect to the database
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.NewPostgresDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("error closing db: %v", err)
-		}
-	}()
+	defer database.CloseDB(db)
+
+	// Create eventstore
+	eventStore, err := eventstore.NewPostgresEventStore(db)
+	if err != nil {
+		log.Fatalf("Failed to create event store: %v", err)
+	}
+
+	// Create repositories
+	userRepo := postgres.NewUserRepository(db)
+	matchRepo := postgres.NewMatchRepository(db)
+
+	// Create token manager
+	tokenMgr := auth.NewTokenManager()
 
 	// Create server
-	srv, err := server.NewServer(db)
-	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
-	}
-	defer func() {
-		if err := srv.Close(); err != nil {
-			log.Printf("error closing server: %v", err)
-		}
-	}()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
 
 	// Create HTTP server
 	httpServer := &http.Server{
-		Addr:         ":8080",
-		Handler:      srv,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:                         ":8080",
+		Handler:                      srv.Router,
+		ReadTimeout:                  constants.DefaultReadTimeout,
+		WriteTimeout:                 constants.DefaultWriteTimeout,
+		IdleTimeout:                  constants.DefaultIdleTimeout,
+		MaxHeaderBytes:               constants.DefaultMaxHeaderBytes,
+		ReadHeaderTimeout:            constants.DefaultHeaderTimeout,
+		DisableGeneralOptionsHandler: false,
+		TLSConfig:                    nil,
+		TLSNextProto:                 nil,
+		ConnState:                    nil,
+		ErrorLog:                     nil,
+		BaseContext:                  nil,
+		ConnContext:                  nil,
+		HTTP2:                        nil,
+		Protocols:                    nil,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Server is running on http://localhost%s", httpServer.Addr)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
@@ -64,16 +72,9 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
 
-	// Create shutdown context with 10 second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Shutdown server gracefully
-	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+	// Gracefully shutdown server
+	if err := httpServer.Shutdown(context.Background()); err != nil {
+		log.Fatalf("Failed to shutdown server: %v", err)
 	}
-
-	log.Println("Server exited properly")
 }

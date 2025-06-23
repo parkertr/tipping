@@ -2,9 +2,11 @@ package domain
 
 import (
 	"time"
+
+	"github.com/parkertr/tipping/internal/constants"
 )
 
-// Prediction represents a user's prediction for a match
+// Prediction represents a user's prediction for a match.
 type Prediction struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"userId"`
@@ -15,7 +17,7 @@ type Prediction struct {
 	Points    int       `json:"points"`
 }
 
-// NewPrediction creates a new prediction instance
+// NewPrediction creates a new prediction instance.
 func NewPrediction(id, userID, matchID string, homeGoals, awayGoals int) *Prediction {
 	return &Prediction{
 		ID:        id,
@@ -24,37 +26,41 @@ func NewPrediction(id, userID, matchID string, homeGoals, awayGoals int) *Predic
 		HomeGoals: homeGoals,
 		AwayGoals: awayGoals,
 		CreatedAt: time.Now(),
+		Points:    0,
 	}
 }
 
-// CalculatePoints calculates the points earned for this prediction
-func (p *Prediction) CalculatePoints(match *Match) int {
+// CalculatePoints calculates the points awarded for this prediction.
+func (prediction *Prediction) CalculatePoints(match *Match) int {
 	if match.Score == nil {
-		return 0
+		return constants.NoPoints
 	}
 
 	// Exact score prediction
-	if p.HomeGoals == match.Score.HomeGoals && p.AwayGoals == match.Score.AwayGoals {
-		return 3
+	if prediction.HomeGoals == match.Score.HomeGoals && prediction.AwayGoals == match.Score.AwayGoals {
+		return constants.ExactScorePoints
 	}
 
-	// Correct result (win/draw/loss)
-	predictionResult := getResult(p.HomeGoals, p.AwayGoals)
-	actualResult := getResult(match.Score.HomeGoals, match.Score.AwayGoals)
-	if predictionResult == actualResult {
-		return 1
+	// Correct result prediction
+	predictionResult := prediction.GetResult()
+	matchResult := match.GetResult()
+
+	if predictionResult == matchResult {
+		return constants.CorrectResultPoints
 	}
 
-	return 0
+	return constants.NoPoints
 }
 
-// getResult determines the result of a match based on goals
-func getResult(homeGoals, awayGoals int) string {
-	if homeGoals > awayGoals {
-		return "HOME_WIN"
+// GetResult returns the predicted result (home win, away win, or draw).
+func (prediction *Prediction) GetResult() string {
+	if prediction.HomeGoals > prediction.AwayGoals {
+		return "home"
 	}
-	if awayGoals > homeGoals {
-		return "AWAY_WIN"
+
+	if prediction.AwayGoals > prediction.HomeGoals {
+		return "away"
 	}
-	return "DRAW"
+
+	return "draw"
 }

@@ -238,3 +238,32 @@ go run ./cmd/migrate create migration_name
 ## License
 
 MIT
+
+## Google OAuth Setup
+
+To enable Google authentication, you need to:
+
+1. Create a Google Cloud Project:
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project or select an existing one
+   - Enable the Google+ API and Google OAuth2 API
+   - Create OAuth 2.0 credentials (Client ID and Secret)
+   - Configure authorized redirect URIs:
+     - Development: `http://localhost:8080/api/auth/google/callback`
+     - Production: `https://your-domain.com/api/auth/google/callback`
+
+2. Set up environment variables:
+   ```bash
+   # Google OAuth Configuration
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-client-secret
+   GOOGLE_REDIRECT_URL=http://localhost:8080/api/auth/google/callback
+
+   # JWT Configuration
+   JWT_SECRET=your-secret-key
+   ```
+
+3. Start the application:
+   ```bash
+   make up
+   ```

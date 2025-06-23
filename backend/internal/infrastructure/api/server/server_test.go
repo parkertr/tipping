@@ -1,167 +1,322 @@
-package server
+package server_test
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/api/server"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/auth"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
-func TestNewServer(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+var (
+	ErrUserNotFound  = errors.New("user not found")
+	ErrMatchNotFound = errors.New("match not found")
+)
+
+// Mock implementations.
+type mockUserRepo struct {
+	users map[string]*domain.User
+}
+
+func newMockUserRepo() *mockUserRepo {
+	return &mockUserRepo{
+		users: make(map[string]*domain.User),
 	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
+}
+
+func (m *mockUserRepo) GetByID(_ context.Context, id string) (*domain.User, error) {
+	user, exists := m.users[id]
+	if !exists {
+		return nil, repository.ErrNotFound
+	}
+	return user, nil
+}
+
+func (m *mockUserRepo) GetByEmail(_ context.Context, email string) (*domain.User, error) {
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
 		}
-	}()
+	}
+	return nil, repository.ErrNotFound
+}
 
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+func (m *mockUserRepo) Create(_ context.Context, user *domain.User) error {
+	m.users[user.ID] = user
+	return nil
+}
 
-	// Test server creation
-	server, err := NewServer(db)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+func (m *mockUserRepo) Update(_ context.Context, user *domain.User) error {
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *mockUserRepo) List(_ context.Context, activeOnly bool) ([]*domain.User, error) {
+	users := make([]*domain.User, 0, len(m.users))
+	for _, user := range m.users {
+		if !activeOnly || user.IsActive {
+			users = append(users, user)
+		}
 	}
-	if server == nil {
-		t.Fatalf("expected server to be non-nil")
+	return users, nil
+}
+
+func (m *mockUserRepo) GetByGoogleID(_ context.Context, googleID string) (*domain.User, error) {
+	for _, user := range m.users {
+		if user.GoogleID == googleID {
+			return user, nil
+		}
 	}
-	if server.router == nil {
-		t.Errorf("expected router to be non-nil")
+	return nil, repository.ErrNotFound
+}
+
+func (m *mockUserRepo) UpdateStats(_ context.Context, userID string, points int, isCorrect bool) error {
+	user, exists := m.users[userID]
+	if !exists {
+		return repository.ErrNotFound
 	}
-	if server.eventStore == nil {
-		t.Errorf("expected eventStore to be non-nil")
+	user.Stats.TotalPoints += points
+	user.Stats.TotalPredictions++
+	if isCorrect {
+		user.Stats.CorrectPredictions++
 	}
-	if server.matchRepo == nil {
-		t.Errorf("expected matchRepo to be non-nil")
+	return nil
+}
+
+func (m *mockUserRepo) UpdateRank(_ context.Context, userID string, rank int) error {
+	user, exists := m.users[userID]
+	if !exists {
+		return repository.ErrNotFound
 	}
-	if server.predRepo == nil {
-		t.Errorf("expected predRepo to be non-nil")
+	user.Stats.CurrentRank = rank
+	return nil
+}
+
+type mockMatchRepo struct {
+	matches map[string]*domain.Match
+}
+
+func newMockMatchRepo() *mockMatchRepo {
+	return &mockMatchRepo{
+		matches: make(map[string]*domain.Match),
+	}
+}
+
+func (m *mockMatchRepo) GetByID(_ context.Context, id string) (*domain.Match, error) {
+	match, exists := m.matches[id]
+	if !exists {
+		return nil, repository.ErrNotFound
+	}
+	return match, nil
+}
+
+func (m *mockMatchRepo) List(_ context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+	matches := make([]*domain.Match, 0, len(m.matches))
+	for _, match := range m.matches {
+		// Apply filters
+		if filters.Competition != nil && match.Competition != *filters.Competition {
+			continue
+		}
+		if filters.StartDate != nil && match.Date.Before(*filters.StartDate) {
+			continue
+		}
+		if filters.EndDate != nil && match.Date.After(*filters.EndDate) {
+			continue
+		}
+		if filters.Status != nil && string(match.Status) != *filters.Status {
+			continue
+		}
+		matches = append(matches, match)
+	}
+	return matches, nil
+}
+
+func (m *mockMatchRepo) Create(_ context.Context, match *domain.Match) error {
+	m.matches[match.ID] = match
+	return nil
+}
+
+func (m *mockMatchRepo) Update(_ context.Context, match *domain.Match) error {
+	m.matches[match.ID] = match
+	return nil
+}
+
+func (m *mockMatchRepo) Delete(_ context.Context, id string) error {
+	delete(m.matches, id)
+	return nil
+}
+
+type mockEventStore struct {
+	events map[string]*events.Event
+}
+
+func newMockEventStore() *mockEventStore {
+	return &mockEventStore{
+		events: make(map[string]*events.Event),
+	}
+}
+
+func (m *mockEventStore) SaveEvent(_ context.Context, event *events.Event) error {
+	m.events[event.ID] = event
+	return nil
+}
+
+func (m *mockEventStore) GetEvents(_ context.Context, aggregateID string) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, event := range m.events {
+		result = append(result, event)
+	}
+	return result, nil
+}
+
+func (m *mockEventStore) GetEventsByType(_ context.Context, eventType string) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, event := range m.events {
+		if event.Type == eventType {
+			result = append(result, event)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockEventStore) GetEventsByTimeRange(_ context.Context, start, end time.Time) ([]*events.Event, error) {
+	var result []*events.Event
+	for _, event := range m.events {
+		if event.Timestamp.After(start) && event.Timestamp.Before(end) {
+			result = append(result, event)
+		}
+	}
+	return result, nil
+}
+
+func TestServer_HealthCheck(t *testing.T) {
+	t.Parallel()
+
+	userRepo := newMockUserRepo()
+	matchRepo := newMockMatchRepo()
+	tokenMgr := auth.NewTokenManager()
+	eventStore := newMockEventStore()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	w := httptest.NewRecorder()
+
+	srv.Router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status code %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if w.Header().Get("Content-Type") != "application/json" {
+		t.Errorf("expected content type %s, got %s", "application/json", w.Header().Get("Content-Type"))
 	}
 }
 
 func TestServerRoutes(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
+	t.Parallel()
 
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	userRepo := newMockUserRepo()
+	matchRepo := newMockMatchRepo()
+	tokenMgr := auth.NewTokenManager()
+	eventStore := newMockEventStore()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
 
-	// Create server
-	server, err := NewServer(db)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	// Test cases for different routes
+	// Test routes
 	testCases := []struct {
-		name           string
-		method         string
-		path           string
-		expectedStatus int
+		method string
+		path   string
+		code   int
 	}{
-		{"List Matches", "GET", "/api/matches", http.StatusOK},
-		{"Get Match", "GET", "/api/matches/123", http.StatusOK},
-		{"Create Match", "POST", "/api/matches", http.StatusOK},
-		{"Update Match Score", "PUT", "/api/matches/123/score", http.StatusOK},
-		{"Create Prediction", "POST", "/api/predictions", http.StatusOK},
-		{"Get User Predictions", "GET", "/api/users/123/predictions", http.StatusOK},
-		{"Get Match Predictions", "GET", "/api/matches/123/predictions", http.StatusOK},
+		{"GET", "/api/health", http.StatusOK},
+		{"GET", "/api/matches", http.StatusOK}, // Public route
+		{"GET", "/api/auth/google", http.StatusTemporaryRedirect},
+		{"GET", "/api/auth/me", http.StatusUnauthorized},
+		{"PUT", "/api/auth/me", http.StatusUnauthorized},
+		{"POST", "/api/protected/predictions", http.StatusUnauthorized},
+		{"GET", "/api/protected/predictions/me", http.StatusUnauthorized},
+		{"GET", "/api/protected/matches/123/predictions", http.StatusUnauthorized},
+		{"GET", "/api/protected/matches/123/predictions/me", http.StatusUnauthorized},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(tc.method, tc.path, nil)
-			rr := httptest.NewRecorder()
+	for _, testCase := range testCases {
+		t.Run(testCase.method+" "+testCase.path, func(t *testing.T) {
+			t.Parallel()
 
-			server.ServeHTTP(rr, req)
-			if rr.Code == http.StatusNotFound {
-				t.Errorf("Route %s %s not found", tc.method, tc.path)
+			req := httptest.NewRequest(testCase.method, testCase.path, nil)
+			rr := httptest.NewRecorder()
+			srv.Router.ServeHTTP(rr, req)
+
+			if rr.Code != testCase.code {
+				t.Errorf("Expected status code %d, got %d", testCase.code, rr.Code)
 			}
 		})
 	}
 }
 
-func TestServerClose(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
-
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-
-	// Create server
-	server, err := NewServer(db)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	// Test server close
-	err = server.Close()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-}
-
 func TestMiddleware(t *testing.T) {
-	// Create a mock database
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	t.Parallel()
+
+	userRepo := newMockUserRepo()
+	matchRepo := newMockMatchRepo()
+	tokenMgr := auth.NewTokenManager()
+	eventStore := newMockEventStore()
+	srv := server.New(userRepo, matchRepo, tokenMgr, eventStore)
+
+	// Test cases
+	testCases := []struct {
+		name           string
+		path           string
+		authHeader     string
+		expectedStatus int
+	}{
+		{
+			name:           "No auth header",
+			path:           "/api/auth/me",
+			authHeader:     "",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid auth header format",
+			path:           "/api/auth/me",
+			authHeader:     "Invalid",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid token",
+			path:           "/api/auth/me",
+			authHeader:     "Bearer invalid-token",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Valid token but user not found",
+			path:           "/api/auth/me",
+			authHeader:     "Bearer valid-token",
+			expectedStatus: http.StatusUnauthorized,
+		},
 	}
-	mock.ExpectClose()
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-	}()
 
-	// Set up expectations for event store initialization
-	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	// Create server
-	server, err := NewServer(db)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+			req := httptest.NewRequest(http.MethodGet, testCase.path, nil)
+			if testCase.authHeader != "" {
+				req.Header.Set("Authorization", testCase.authHeader)
+			}
 
-	// Test middleware
-	req := httptest.NewRequest("GET", "/api/matches", nil)
-	rr := httptest.NewRecorder()
+			rr := httptest.NewRecorder()
+			srv.Router.ServeHTTP(rr, req)
 
-	server.ServeHTTP(rr, req)
-
-	// Check CORS headers
-	if _, ok := rr.Header()["Access-Control-Allow-Origin"]; !ok {
-		t.Errorf("expected Access-Control-Allow-Origin header to be set")
-	}
-	if _, ok := rr.Header()["Access-Control-Allow-Methods"]; !ok {
-		t.Errorf("expected Access-Control-Allow-Methods header to be set")
-	}
-	if _, ok := rr.Header()["Access-Control-Allow-Headers"]; !ok {
-		t.Errorf("expected Access-Control-Allow-Headers header to be set")
+			if rr.Code != testCase.expectedStatus {
+				t.Errorf("Expected status code %d, got %d", testCase.expectedStatus, rr.Code)
+			}
+		})
 	}
 }

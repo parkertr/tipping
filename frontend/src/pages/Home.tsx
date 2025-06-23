@@ -1,7 +1,9 @@
 import { Container, Typography, Paper, Grid, Box, Chip, CircularProgress, Alert } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
+import GoogleSignIn from '../components/GoogleSignIn'
+import api from '../utils/auth'
 
 interface UpcomingMatch {
   id: string
@@ -14,11 +16,12 @@ interface UpcomingMatch {
 
 const Home = () => {
   const navigate = useNavigate()
+  const { user, isAuthenticated } = useAuth()
 
   const { data: upcomingMatches, isLoading, error } = useQuery<UpcomingMatch[]>({
     queryKey: ['upcomingMatches'],
     queryFn: async () => {
-      const response = await axios.get('/api/matches/upcoming')
+      const response = await api.get('/matches/upcoming')
       return response.data
     },
   })
@@ -45,10 +48,30 @@ const Home = () => {
     }
   }
 
+  // Show login prompt for unauthenticated users
+  if (!isAuthenticated) {
+    return (
+      <Container maxWidth="sm">
+        <Paper sx={{ p: 4, textAlign: 'center', mt: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Welcome to Footy Tipping
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            Join our football tipping competition! Make predictions on upcoming matches,
+            compete with friends, and climb the leaderboard.
+          </Typography>
+          <Box sx={{ mt: 3 }}>
+            <GoogleSignIn />
+          </Box>
+        </Paper>
+      </Container>
+    )
+  }
+
   return (
     <Container maxWidth="lg">
       <Typography variant="h4" component="h1" gutterBottom>
-        Welcome to Footy Tipping
+        Welcome back, {user?.name?.split(' ')[0] || 'Champion'}!
       </Typography>
 
       <Grid container spacing={3}>

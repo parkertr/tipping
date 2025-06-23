@@ -2,9 +2,9 @@ name: Go Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "**" ]
 
 jobs:
   test:
@@ -21,11 +21,13 @@ jobs:
       - name: Install dependencies
         run: cd backend && go mod download
 
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.6
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
       - name: Run linter
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: latest
-          working-directory: backend
+        run: make lint
 
       - name: Run tests
-        run: cd backend && go test ./...
+        run: make test

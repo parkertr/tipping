@@ -3,11 +3,13 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/parkertr2/footy-tipping/internal/domain"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
 )
 
 type MatchRepository struct {
@@ -90,13 +92,13 @@ func (r *MatchRepository) Update(ctx context.Context, match *domain.Match) error
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("match not found: %s", match.ID)
+		return repository.ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match, error) {
+func (r *MatchRepository) GetByID(ctx context.Context, matchID string) (*domain.Match, error) {
 	query := `
 		SELECT id, home_team, away_team, match_date, competition, status, home_goals, away_goals
 		FROM matches_view
@@ -104,8 +106,17 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	`
 
 	var homeGoals, awayGoals sql.NullInt32
-	match := &domain.Match{}
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+
+	match := &domain.Match{
+		ID:          "",
+		HomeTeam:    "",
+		AwayTeam:    "",
+		Date:        time.Time{},
+		Competition: "",
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
+	err := r.db.QueryRowContext(ctx, query, matchID).Scan(
 		&match.ID,
 		&match.HomeTeam,
 		&match.AwayTeam,
@@ -116,12 +127,12 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 		&awayGoals,
 	)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("match not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("match not found with ID %s: %w", matchID, err)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get match: %w", err)
+		return nil, fmt.Errorf("failed to scan match with ID %s: %w", matchID, err)
 	}
 
 	if homeGoals.Valid && awayGoals.Valid {
@@ -134,9 +145,12 @@ func (r *MatchRepository) GetByID(ctx context.Context, id string) (*domain.Match
 	return match, nil
 }
 
-func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+// buildMatchQuery builds the SQL query and arguments for listing matches with filters.
+func (r *MatchRepository) buildMatchQuery(filters repository.MatchFilters) (string, []interface{}) {
 	var conditions []string
+
 	var args []interface{}
+
 	argPos := 1
 
 	if filters.Competition != nil {
@@ -173,10 +187,55 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 
 	query += " ORDER BY match_date ASC"
 
+	return query, args
+}
+
+// scanMatchRow scans a single match row from the database.
+func (r *MatchRepository) scanMatchRow(rows *sql.Rows) (*domain.Match, error) {
+	var homeGoals, awayGoals sql.NullInt32
+
+	match := &domain.Match{
+		ID:          "",
+		HomeTeam:    "",
+		AwayTeam:    "",
+		Date:        time.Time{},
+		Competition: "",
+		Status:      domain.MatchStatusScheduled,
+		Score:       &domain.Score{HomeGoals: 0, AwayGoals: 0},
+	}
+
+	err := rows.Scan(
+		&match.ID,
+		&match.HomeTeam,
+		&match.AwayTeam,
+		&match.Date,
+		&match.Competition,
+		&match.Status,
+		&homeGoals,
+		&awayGoals,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan match row: %w", err)
+	}
+
+	if homeGoals.Valid && awayGoals.Valid {
+		match.Score = &domain.Score{
+			HomeGoals: int(homeGoals.Int32),
+			AwayGoals: int(awayGoals.Int32),
+		}
+	}
+
+	return match, nil
+}
+
+func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilters) ([]*domain.Match, error) {
+	query, args := r.buildMatchQuery(filters)
+
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list matches: %w", err)
+		return nil, fmt.Errorf("failed to query matches with filters: %w", err)
 	}
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			fmt.Printf("error closing rows: %v\n", err)
@@ -184,35 +243,18 @@ func (r *MatchRepository) List(ctx context.Context, filters repository.MatchFilt
 	}()
 
 	var matches []*domain.Match
-	for rows.Next() {
-		var homeGoals, awayGoals sql.NullInt32
-		match := &domain.Match{}
-		err := rows.Scan(
-			&match.ID,
-			&match.HomeTeam,
-			&match.AwayTeam,
-			&match.Date,
-			&match.Competition,
-			&match.Status,
-			&homeGoals,
-			&awayGoals,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan match: %w", err)
-		}
 
-		if homeGoals.Valid && awayGoals.Valid {
-			match.Score = &domain.Score{
-				HomeGoals: int(homeGoals.Int32),
-				AwayGoals: int(awayGoals.Int32),
-			}
+	for rows.Next() {
+		match, err := r.scanMatchRow(rows)
+		if err != nil {
+			return nil, err
 		}
 
 		matches = append(matches, match)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating matches: %w", err)
+		return nil, fmt.Errorf("error iterating match rows: %w", err)
 	}
 
 	return matches, nil

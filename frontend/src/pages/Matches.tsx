@@ -1,7 +1,8 @@
 import React, { useState, ChangeEvent, useEffect } from 'react'
 import { Container, Typography, Paper, Grid, Button, TextField } from '@mui/material'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
+import api from '../utils/auth'
 
 interface Match {
   id: string
@@ -25,31 +26,33 @@ const Matches: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null)
   const [prediction, setPrediction] = useState('')
   const [userPredictions, setUserPredictions] = useState<Record<string, Prediction>>({})
-
-  // TODO: Replace with actual user ID from authentication
-  const currentUserId = 'user123'
+  const { user } = useAuth()
 
   const { data: matches, isLoading } = useQuery<Match[]>({
     queryKey: ['matches'],
     queryFn: async () => {
-      const response = await axios.get('/api/matches')
+      const response = await api.get('/matches')
       return response.data
     },
   })
 
-  // Fetch user predictions for all matches
+  // Fetch user predictions for all matches using new authenticated endpoints
   useEffect(() => {
     const fetchPredictions = async () => {
-      if (!matches) return
+      if (!matches || !user) return
 
       const predictions: Record<string, Prediction> = {}
 
       for (const match of matches) {
         try {
-          const response = await axios.get(`/api/matches/${match.id}/predictions/${currentUserId}`)
+          // Use new authenticated endpoint: /api/protected/matches/{matchId}/predictions/me
+          const response = await api.get(`/protected/matches/${match.id}/predictions/me`)
           predictions[match.id] = response.data
-        } catch (error) {
-          // No prediction found for this match, which is fine
+        } catch (error: any) {
+          // No prediction found for this match (404), which is fine
+          if (error.response?.status !== 404) {
+            console.error(`Error fetching prediction for match ${match.id}:`, error)
+          }
         }
       }
 
@@ -57,7 +60,7 @@ const Matches: React.FC = () => {
     }
 
     fetchPredictions()
-  }, [matches, currentUserId])
+  }, [matches, user])
 
   const submitPrediction = useMutation({
     mutationFn: async ({ matchId, prediction }: { matchId: string; prediction: string }) => {
@@ -74,9 +77,8 @@ const Matches: React.FC = () => {
         throw new Error('Invalid prediction format. Please use numbers like "2-1"')
       }
 
-      // Use the correct API endpoint and format
-      const response = await axios.post('/api/predictions', {
-        userId: currentUserId,
+      // Use new authenticated API - no userId needed (comes from auth context)
+      const response = await api.post('/protected/predictions', {
         matchId,
         homeGoals,
         awayGoals
@@ -94,7 +96,15 @@ const Matches: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Failed to submit prediction:', error)
-      alert(error.message || 'Failed to submit prediction')
+
+      // Handle specific error cases
+      if (error.response?.status === 409) {
+        alert('You have already made a prediction for this match')
+      } else if (error.response?.status === 400) {
+        alert('Cannot predict on a finished match')
+      } else {
+        alert(error.response?.data || error.message || 'Failed to submit prediction')
+      }
     },
   })
 
@@ -104,6 +114,17 @@ const Matches: React.FC = () => {
 
   const formatPrediction = (pred: Prediction) => {
     return `${pred.homeGoals}-${pred.awayGoals}`
+  }
+
+  if (!user) {
+    return (
+      <Container maxWidth="lg">
+        <Typography variant="h4" component="h1" gutterBottom>
+          Matches
+        </Typography>
+        <Typography>Please log in to view matches and make predictions.</Typography>
+      </Container>
+    )
   }
 
   return (

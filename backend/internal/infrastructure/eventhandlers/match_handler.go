@@ -6,24 +6,24 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/parkertr2/footy-tipping/internal/domain"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository"
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
-// MatchEventHandler handles match-related events and updates the read model
+// MatchEventHandler handles match-related events and updates the read model.
 type MatchEventHandler struct {
 	matchRepo repository.MatchRepository
 }
 
-// NewMatchEventHandler creates a new match event handler
+// NewMatchEventHandler creates a new match event handler.
 func NewMatchEventHandler(matchRepo repository.MatchRepository) *MatchEventHandler {
 	return &MatchEventHandler{
 		matchRepo: matchRepo,
 	}
 }
 
-// HandleEvent processes events and updates the read model accordingly
+// HandleEvent processes events and updates the read model accordingly.
 func (h *MatchEventHandler) HandleEvent(ctx context.Context, event *events.Event) error {
 	switch event.Type {
 	case "MatchCreated":
@@ -38,7 +38,7 @@ func (h *MatchEventHandler) HandleEvent(ctx context.Context, event *events.Event
 	}
 }
 
-// handleMatchCreated processes MatchCreated events
+// handleMatchCreated processes MatchCreated events.
 func (h *MatchEventHandler) handleMatchCreated(ctx context.Context, event *events.Event) error {
 	// Extract event data
 	data, err := json.Marshal(event.Data)
@@ -63,14 +63,16 @@ func (h *MatchEventHandler) handleMatchCreated(ctx context.Context, event *event
 	// Save to read model
 	if err := h.matchRepo.Create(ctx, match); err != nil {
 		log.Printf("Failed to create match in read model: %v", err)
+
 		return fmt.Errorf("failed to create match in read model: %w", err)
 	}
 
 	log.Printf("Created match in read model: %s vs %s", match.HomeTeam, match.AwayTeam)
+
 	return nil
 }
 
-// handleMatchScoreUpdated processes MatchScoreUpdated events
+// handleMatchScoreUpdated processes MatchScoreUpdated events.
 func (h *MatchEventHandler) handleMatchScoreUpdated(ctx context.Context, event *events.Event) error {
 	// Extract event data
 	data, err := json.Marshal(event.Data)
@@ -99,10 +101,11 @@ func (h *MatchEventHandler) handleMatchScoreUpdated(ctx context.Context, event *
 
 	log.Printf("Updated match score in read model: %s %d-%d %s",
 		match.HomeTeam, scoreUpdated.HomeGoals, scoreUpdated.AwayGoals, match.AwayTeam)
+
 	return nil
 }
 
-// handleMatchStatusChanged processes MatchStatusChanged events
+// handleMatchStatusChanged processes MatchStatusChanged events.
 func (h *MatchEventHandler) handleMatchStatusChanged(ctx context.Context, event *events.Event) error {
 	// Extract event data
 	data, err := json.Marshal(event.Data)
@@ -131,5 +134,6 @@ func (h *MatchEventHandler) handleMatchStatusChanged(ctx context.Context, event 
 
 	log.Printf("Updated match status in read model: %s vs %s -> %s",
 		match.HomeTeam, match.AwayTeam, match.Status)
+
 	return nil
 }

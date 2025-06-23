@@ -1,60 +1,66 @@
-package eventstore
+package eventstore_test
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/parkertr2/footy-tipping/pkg/events"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr/tipping/pkg/events"
 )
 
 func TestNewPostgresEventStore(t *testing.T) {
+	t.Parallel()
 	// Create a mock database
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer func() {
+
+	t.Cleanup(func() {
 		_ = db.Close() // Ignore close errors for mock database
-	}()
+	})
 
 	// Set up expectations for database ping
 	mock.ExpectPing()
 
 	// Create event store
-	store, err := NewPostgresEventStore(db)
+	store, err := eventstore.NewPostgresEventStore(db)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
+
 	if store == nil {
 		t.Errorf("expected store to be non-nil")
 	}
 }
 
 func TestSaveEvent(t *testing.T) {
+	t.Parallel()
 	// Test case 1: Save match created event
 	t.Run("Save match created event", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		matchCreated := &events.MatchCreated{
 			ID:          "match123",
 			HomeTeam:    "Team A",
@@ -79,25 +85,27 @@ func TestSaveEvent(t *testing.T) {
 
 	// Test case 2: Save prediction made event
 	t.Run("Save prediction made event", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		predictionMade := &events.PredictionMade{
 			ID:        "pred123",
 			UserID:    "user123",
@@ -123,27 +131,30 @@ func TestSaveEvent(t *testing.T) {
 }
 
 func TestGetEvents(t *testing.T) {
+	t.Parallel()
 	// Test case 1: Get match events
 	t.Run("Get match events", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		matchID := "match123"
 		now := time.Now()
 		matchCreated := events.MatchCreated{
@@ -155,6 +166,7 @@ func TestGetEvents(t *testing.T) {
 		}
 
 		event := events.NewEvent("MatchCreated", matchCreated)
+
 		eventData, err := json.Marshal(matchCreated)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -176,6 +188,7 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		if len(events) != 1 {
 			t.Errorf("expected 1 event, got %d", len(events))
 		}
@@ -190,47 +203,54 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		var resultData map[string]interface{}
+
 		err = json.Unmarshal(data, &resultData)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		if matchCreated.ID != resultData["ID"] {
-			t.Errorf("expected ID %v, got %v", matchCreated.ID, resultData["ID"])
+		if matchCreated.ID != resultData["id"] {
+			t.Errorf("expected ID %v, got %v", matchCreated.ID, resultData["id"])
 		}
-		if matchCreated.HomeTeam != resultData["HomeTeam"] {
-			t.Errorf("expected HomeTeam %v, got %v", matchCreated.HomeTeam, resultData["HomeTeam"])
+
+		if matchCreated.HomeTeam != resultData["homeTeam"] {
+			t.Errorf("expected HomeTeam %v, got %v", matchCreated.HomeTeam, resultData["homeTeam"])
 		}
-		if matchCreated.AwayTeam != resultData["AwayTeam"] {
-			t.Errorf("expected AwayTeam %v, got %v", matchCreated.AwayTeam, resultData["AwayTeam"])
+
+		if matchCreated.AwayTeam != resultData["awayTeam"] {
+			t.Errorf("expected AwayTeam %v, got %v", matchCreated.AwayTeam, resultData["awayTeam"])
 		}
-		if matchCreated.Competition != resultData["Competition"] {
-			t.Errorf("expected Competition %v, got %v", matchCreated.Competition, resultData["Competition"])
+
+		if matchCreated.Competition != resultData["competition"] {
+			t.Errorf("expected Competition %v, got %v", matchCreated.Competition, resultData["competition"])
 		}
 	})
 
 	// Test case 2: Get prediction events
 	t.Run("Get prediction events", func(t *testing.T) {
+		t.Parallel()
 		// Create a mock database
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		defer func() {
+
+		t.Cleanup(func() {
 			_ = db.Close() // Ignore close errors for mock database
-		}()
+		})
 
 		// Set up expectations for database ping
 		mock.ExpectPing()
 
 		// Create event store
-		store, err := NewPostgresEventStore(db)
+		store, err := eventstore.NewPostgresEventStore(db)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		userID := "user123"
 		now := time.Now()
 		predictionMade := events.PredictionMade{
@@ -243,6 +263,7 @@ func TestGetEvents(t *testing.T) {
 		}
 
 		event := events.NewEvent("PredictionMade", predictionMade)
+
 		eventData, err := json.Marshal(predictionMade)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -264,6 +285,7 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		if len(events) != 1 {
 			t.Errorf("expected 1 event, got %d", len(events))
 		}
@@ -278,26 +300,32 @@ func TestGetEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
+
 		var resultData map[string]interface{}
+
 		err = json.Unmarshal(data, &resultData)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		if predictionMade.ID != resultData["ID"] {
-			t.Errorf("expected ID %v, got %v", predictionMade.ID, resultData["ID"])
+		if predictionMade.ID != resultData["id"] {
+			t.Errorf("expected ID %v, got %v", predictionMade.ID, resultData["id"])
 		}
-		if predictionMade.UserID != resultData["UserID"] {
-			t.Errorf("expected UserID %v, got %v", predictionMade.UserID, resultData["UserID"])
+
+		if predictionMade.UserID != resultData["userId"] {
+			t.Errorf("expected UserID %v, got %v", predictionMade.UserID, resultData["userId"])
 		}
-		if predictionMade.MatchID != resultData["MatchID"] {
-			t.Errorf("expected MatchID %v, got %v", predictionMade.MatchID, resultData["MatchID"])
+
+		if predictionMade.MatchID != resultData["matchId"] {
+			t.Errorf("expected MatchID %v, got %v", predictionMade.MatchID, resultData["matchId"])
 		}
-		if float64(predictionMade.HomeGoals) != resultData["HomeGoals"] {
-			t.Errorf("expected HomeGoals %v, got %v", predictionMade.HomeGoals, resultData["HomeGoals"])
+
+		if predictionMade.HomeGoals != int(resultData["homeGoals"].(float64)) {
+			t.Errorf("expected HomeGoals %v, got %v", predictionMade.HomeGoals, resultData["homeGoals"])
 		}
-		if float64(predictionMade.AwayGoals) != resultData["AwayGoals"] {
-			t.Errorf("expected AwayGoals %v, got %v", predictionMade.AwayGoals, resultData["AwayGoals"])
+
+		if predictionMade.AwayGoals != int(resultData["awayGoals"].(float64)) {
+			t.Errorf("expected AwayGoals %v, got %v", predictionMade.AwayGoals, resultData["awayGoals"])
 		}
 	})
 }

@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
-	"github.com/parkertr2/footy-tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
 )
 
 type PredictionRepository struct {
@@ -65,13 +67,13 @@ func (r *PredictionRepository) Update(ctx context.Context, prediction *domain.Pr
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("prediction not found: %s", prediction.ID)
+		return repository.ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.Prediction, error) {
+func (r *PredictionRepository) GetByID(ctx context.Context, predictionID string) (*domain.Prediction, error) {
 	query := `
 		SELECT id, user_id, match_id, home_goals, away_goals, points
 		FROM predictions_view
@@ -79,7 +81,7 @@ func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.
 	`
 
 	prediction := &domain.Prediction{}
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, predictionID).Scan(
 		&prediction.ID,
 		&prediction.UserID,
 		&prediction.MatchID,
@@ -88,18 +90,21 @@ func (r *PredictionRepository) GetByID(ctx context.Context, id string) (*domain.
 		&prediction.Points,
 	)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("prediction not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("prediction not found with ID %s: %w", predictionID, err)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get prediction: %w", err)
+		return nil, fmt.Errorf("failed to get prediction with ID %s: %w", predictionID, err)
 	}
 
 	return prediction, nil
 }
 
-func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, matchID string) (*domain.Prediction, error) {
+func (r *PredictionRepository) GetByUserAndMatch(
+	ctx context.Context,
+	userID, matchID string,
+) (*domain.Prediction, error) {
 	query := `
 		SELECT id, user_id, match_id, home_goals, away_goals, points
 		FROM predictions_view
@@ -116,8 +121,8 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 		&prediction.Points,
 	)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("prediction not found for user %s and match %s", userID, matchID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, repository.ErrNotFound
 	}
 
 	if err != nil {
@@ -125,6 +130,35 @@ func (r *PredictionRepository) GetByUserAndMatch(ctx context.Context, userID, ma
 	}
 
 	return prediction, nil
+}
+
+// scanPredictions scans rows into a slice of predictions.
+func (r *PredictionRepository) scanPredictions(rows *sql.Rows) ([]*domain.Prediction, error) {
+	var predictions []*domain.Prediction
+
+	for rows.Next() {
+		prediction := &domain.Prediction{}
+
+		err := rows.Scan(
+			&prediction.ID,
+			&prediction.UserID,
+			&prediction.MatchID,
+			&prediction.HomeGoals,
+			&prediction.AwayGoals,
+			&prediction.Points,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan prediction row: %w", err)
+		}
+
+		predictions = append(predictions, prediction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating predictions: %w", err)
+	}
+
+	return predictions, nil
 }
 
 func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([]*domain.Prediction, error) {
@@ -137,36 +171,16 @@ func (r *PredictionRepository) ListByUser(ctx context.Context, userID string) ([
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list predictions: %w", err)
+		return nil, fmt.Errorf("failed to list predictions for user %s: %w", userID, err)
 	}
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			fmt.Printf("error closing rows: %v\n", err)
 		}
 	}()
 
-	var predictions []*domain.Prediction
-	for rows.Next() {
-		prediction := &domain.Prediction{}
-		err := rows.Scan(
-			&prediction.ID,
-			&prediction.UserID,
-			&prediction.MatchID,
-			&prediction.HomeGoals,
-			&prediction.AwayGoals,
-			&prediction.Points,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan prediction: %w", err)
-		}
-		predictions = append(predictions, prediction)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating predictions: %w", err)
-	}
-
-	return predictions, nil
+	return r.scanPredictions(rows)
 }
 
 func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) ([]*domain.Prediction, error) {
@@ -179,34 +193,14 @@ func (r *PredictionRepository) ListByMatch(ctx context.Context, matchID string) 
 
 	rows, err := r.db.QueryContext(ctx, query, matchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list predictions: %w", err)
+		return nil, fmt.Errorf("failed to list predictions for match %s: %w", matchID, err)
 	}
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			fmt.Printf("error closing rows: %v\n", err)
 		}
 	}()
 
-	var predictions []*domain.Prediction
-	for rows.Next() {
-		prediction := &domain.Prediction{}
-		err := rows.Scan(
-			&prediction.ID,
-			&prediction.UserID,
-			&prediction.MatchID,
-			&prediction.HomeGoals,
-			&prediction.AwayGoals,
-			&prediction.Points,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan prediction: %w", err)
-		}
-		predictions = append(predictions, prediction)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating predictions: %w", err)
-	}
-
-	return predictions, nil
+	return r.scanPredictions(rows)
 }

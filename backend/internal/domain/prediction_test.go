@@ -1,91 +1,134 @@
-package domain
+package domain_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/parkertr/tipping/internal/domain"
 )
 
 func TestNewPrediction(t *testing.T) {
-	// Test case: Create new prediction
-	id := "pred123"
-	userID := "user123"
-	matchID := "match123"
+	t.Parallel()
+
+	predictionID := "pred1"
+	userID := "user1"
+	matchID := "match1"
 	homeGoals := 2
 	awayGoals := 1
 
-	prediction := NewPrediction(id, userID, matchID, homeGoals, awayGoals)
+	prediction := domain.NewPrediction(
+		"pred1",
+		"user1",
+		"match1",
+		2,
+		1,
+	)
 
-	if prediction.ID != id {
-		t.Errorf("expected ID %v, got %v", id, prediction.ID)
+	if prediction.ID != predictionID {
+		t.Errorf("Expected ID %s, got %s", predictionID, prediction.ID)
 	}
+
 	if prediction.UserID != userID {
-		t.Errorf("expected UserID %v, got %v", userID, prediction.UserID)
+		t.Errorf("Expected UserID %s, got %s", userID, prediction.UserID)
 	}
+
 	if prediction.MatchID != matchID {
-		t.Errorf("expected MatchID %v, got %v", matchID, prediction.MatchID)
+		t.Errorf("Expected MatchID %s, got %s", matchID, prediction.MatchID)
 	}
+
 	if prediction.HomeGoals != homeGoals {
-		t.Errorf("expected HomeGoals %v, got %v", homeGoals, prediction.HomeGoals)
+		t.Errorf("Expected HomeGoals %d, got %d", homeGoals, prediction.HomeGoals)
 	}
+
 	if prediction.AwayGoals != awayGoals {
-		t.Errorf("expected AwayGoals %v, got %v", awayGoals, prediction.AwayGoals)
+		t.Errorf("Expected AwayGoals %d, got %d", awayGoals, prediction.AwayGoals)
 	}
+
 	if prediction.CreatedAt.IsZero() {
 		t.Errorf("expected CreatedAt to be set")
 	}
+
 	if prediction.Points != 0 {
 		t.Errorf("expected Points to be 0, got %v", prediction.Points)
 	}
 }
 
 func TestCalculatePoints(t *testing.T) {
-	prediction := NewPrediction("pred123", "user123", "match123", 2, 1)
+	t.Parallel()
 
-	// Test case 1: Match has no score
-	match := NewMatch("match123", "Team A", "Team B", time.Now(), "Premier League")
-	points := prediction.CalculatePoints(match)
-	if points != 0 {
-		t.Errorf("expected points 0, got %v", points)
-	}
+	t.Run("exact score", func(t *testing.T) {
+		t.Parallel()
 
-	// Test case 2: Exact score prediction
-	match.UpdateScore(2, 1)
-	points = prediction.CalculatePoints(match)
-	if points != 3 {
-		t.Errorf("expected points 3, got %v", points)
-	}
+		prediction := domain.NewPrediction("pred1", "user1", "match1", 2, 1)
+		match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
+		match.UpdateScore(2, 1)
 
-	// Test case 3: Correct result (home win) but wrong score
-	prediction = NewPrediction("pred123", "user123", "match123", 3, 1)
-	points = prediction.CalculatePoints(match)
-	if points != 1 {
-		t.Errorf("expected points 1, got %v", points)
-	}
+		points := prediction.CalculatePoints(match)
+		if points != 3 {
+			t.Errorf("Expected 3 points for exact score, got %d", points)
+		}
+	})
 
-	// Test case 4: Wrong result
-	prediction = NewPrediction("pred123", "user123", "match123", 1, 2)
-	points = prediction.CalculatePoints(match)
-	if points != 0 {
-		t.Errorf("expected points 0, got %v", points)
-	}
+	t.Run("correct result", func(t *testing.T) {
+		t.Parallel()
+
+		prediction := domain.NewPrediction("pred1", "user1", "match1", 3, 1)
+		match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
+		match.UpdateScore(2, 1)
+
+		points := prediction.CalculatePoints(match)
+		if points != 1 {
+			t.Errorf("Expected 1 point for correct result, got %d", points)
+		}
+	})
+
+	t.Run("wrong prediction", func(t *testing.T) {
+		t.Parallel()
+
+		prediction := domain.NewPrediction("pred1", "user1", "match1", 2, 1)
+		match := domain.NewMatch("match1", "Arsenal", "Chelsea", time.Now(), "Premier League")
+		match.UpdateScore(1, 2)
+
+		points := prediction.CalculatePoints(match)
+		if points != 0 {
+			t.Errorf("Expected 0 points for wrong prediction, got %d", points)
+		}
+	})
 }
 
 func TestGetResult(t *testing.T) {
-	// Test case 1: Home win
-	result := getResult(2, 1)
-	if result != "HOME_WIN" {
-		t.Errorf("expected result HOME_WIN, got %v", result)
-	}
+	t.Parallel()
 
-	// Test case 2: Away win
-	result = getResult(1, 2)
-	if result != "AWAY_WIN" {
-		t.Errorf("expected result AWAY_WIN, got %v", result)
-	}
+	t.Run("home win", func(t *testing.T) {
+		t.Parallel()
 
-	// Test case 3: Draw
-	result = getResult(1, 1)
-	if result != "DRAW" {
-		t.Errorf("expected result DRAW, got %v", result)
-	}
+		prediction := domain.NewPrediction("pred1", "user1", "match1", 2, 1)
+
+		result := prediction.GetResult()
+		if result != "home" {
+			t.Errorf("Expected result 'home', got '%s'", result)
+		}
+	})
+
+	t.Run("away win", func(t *testing.T) {
+		t.Parallel()
+
+		prediction := domain.NewPrediction("pred1", "user1", "match1", 1, 2)
+
+		result := prediction.GetResult()
+		if result != "away" {
+			t.Errorf("Expected result 'away', got '%s'", result)
+		}
+	})
+
+	t.Run("draw", func(t *testing.T) {
+		t.Parallel()
+
+		prediction := domain.NewPrediction("pred1", "user1", "match1", 1, 1)
+
+		result := prediction.GetResult()
+		if result != "draw" {
+			t.Errorf("Expected result 'draw', got '%s'", result)
+		}
+	})
 }

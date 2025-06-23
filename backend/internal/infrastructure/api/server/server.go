@@ -1,80 +1,166 @@
 package server
 
 import (
-	"database/sql"
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/api/handlers"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/eventstore"
-	"github.com/parkertr2/footy-tipping/internal/infrastructure/repository/postgres"
+	"github.com/parkertr/tipping/internal/infrastructure/api/handlers"
+	"github.com/parkertr/tipping/internal/infrastructure/api/middleware"
+	"github.com/parkertr/tipping/internal/infrastructure/eventstore"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
+	"github.com/parkertr/tipping/pkg/auth"
 )
 
-// Server represents the HTTP server
+// Server represents the HTTP server.
 type Server struct {
-	router     *mux.Router
+	Router     *mux.Router
+	server     *http.Server
+	userRepo   repository.UserRepository
+	matchRepo  repository.MatchRepository
+	tokenMgr   *auth.TokenManager
 	eventStore eventstore.EventStore
-	matchRepo  *postgres.MatchRepository
-	predRepo   *postgres.PredictionRepository
 }
 
-// NewServer creates a new server instance
-func NewServer(db *sql.DB) (*Server, error) {
-	// Create repositories
-	matchRepo := postgres.NewMatchRepository(db)
-	predRepo := postgres.NewPredictionRepository(db)
+// CORS middleware to handle cross-origin requests
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
 
-	// Create event store
-	eventStore, err := eventstore.NewPostgresEventStore(db)
-	if err != nil {
-		return nil, err
-	}
+		// Allow requests from frontend origin
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		}
 
-	// Create server
+		// Check if origin is allowed
+		originAllowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				originAllowed = true
+				break
+			}
+		}
+
+		if originAllowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// New creates a new server instance.
+func New(
+	userRepo repository.UserRepository,
+	matchRepo repository.MatchRepository,
+	tokenMgr *auth.TokenManager,
+	eventStore eventstore.EventStore,
+) *Server {
+	router := mux.NewRouter()
+
+	// Add CORS middleware to all routes
+	router.Use(corsMiddleware)
+
 	s := &Server{
-		router:     mux.NewRouter(),
-		eventStore: eventStore,
+		Router:     router,
+		userRepo:   userRepo,
 		matchRepo:  matchRepo,
-		predRepo:   predRepo,
+		tokenMgr:   tokenMgr,
+		eventStore: eventStore,
 	}
 
-	// Add middleware
-	s.router.Use(loggingMiddleware)
-	s.router.Use(corsMiddleware)
+	s.registerRoutes()
 
-	// Set up routes
-	s.setupRoutes()
-
-	return s, nil
+	return s
 }
 
-// setupRoutes configures the server routes
-func (s *Server) setupRoutes() {
-	// Create handlers
-	matchHandler := handlers.NewMatchHandler(s.eventStore, s.matchRepo)
-	predictionHandler := handlers.NewPredictionHandler(s.eventStore)
+// Start starts the server on the specified port.
+func (s *Server) Start(port int) error {
+	s.server = &http.Server{
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      s.Router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
 
-	// Match routes
-	s.router.HandleFunc("/api/matches", matchHandler.CreateMatch).Methods("POST")
-	s.router.HandleFunc("/api/matches", matchHandler.ListMatches).Methods("GET")
-	s.router.HandleFunc("/api/matches/upcoming", matchHandler.ListUpcomingMatches).Methods("GET")
-	s.router.HandleFunc("/api/matches/{id}/score", matchHandler.UpdateMatchScore).Methods("PUT")
-	s.router.HandleFunc("/api/matches/{id}", matchHandler.GetMatch).Methods("GET")
-
-	// Prediction routes
-	s.router.HandleFunc("/api/predictions", predictionHandler.CreatePrediction).Methods("POST")
-	s.router.HandleFunc("/api/users/{userId}/predictions", predictionHandler.GetUserPredictions).Methods("GET")
-	s.router.HandleFunc("/api/matches/{matchId}/predictions", predictionHandler.GetMatchPredictions).Methods("GET")
-	s.router.HandleFunc("/api/matches/{matchId}/predictions/{userId}", predictionHandler.GetUserPredictionForMatch).Methods("GET")
+	return s.server.ListenAndServe()
 }
 
-// ServeHTTP implements the http.Handler interface
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.router.ServeHTTP(w, r)
-}
+// Shutdown gracefully shuts down the server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.server != nil {
+		return s.server.Shutdown(ctx)
+	}
 
-// Close cleans up any resources used by the server
-func (s *Server) Close() error {
-	// Add any cleanup logic here if needed
 	return nil
+}
+
+// registerRoutes registers all the routes for the server.
+func (s *Server) registerRoutes() {
+	// Create handlers
+	authHandler := handlers.NewAuthHandler(s.userRepo, s.tokenMgr, s.eventStore)
+	matchHandler := handlers.NewMatchHandler(s.eventStore, s.matchRepo)
+	predictionHandler := handlers.NewPredictionHandler(s.eventStore, s.matchRepo)
+
+	// Global OPTIONS handler for CORS preflight requests
+	s.Router.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// CORS headers are already set by corsMiddleware
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Public routes (no authentication required)
+	s.Router.HandleFunc("/api/health", s.healthCheck).Methods(http.MethodGet)
+
+	// Public match routes (viewing matches doesn't require auth)
+	s.Router.HandleFunc("/api/matches", matchHandler.ListMatches).Methods("GET")
+	s.Router.HandleFunc("/api/matches/{id}", matchHandler.GetMatch).Methods("GET")
+
+	// Auth routes (public)
+	authRoutes := s.Router.PathPrefix("/api/auth").Subrouter()
+	authHandler.RegisterRoutes(authRoutes)
+
+	// Protected routes use a different prefix to avoid conflicts
+	protectedAPI := s.Router.PathPrefix("/api/protected").Subrouter()
+	protectedAPI.Use(middleware.AuthMiddleware(s.tokenMgr, s.userRepo))
+
+	// Protected match routes (creating/updating matches requires auth)
+	protectedAPI.HandleFunc("/matches", matchHandler.CreateMatch).Methods("POST")
+	protectedAPI.HandleFunc("/matches/{id}/score", matchHandler.UpdateMatchScore).Methods("PUT")
+
+	// Prediction routes (all require authentication) - also need to update the handler to use /api/protected
+	s.registerPredictionRoutes(protectedAPI, predictionHandler)
+}
+
+// registerPredictionRoutes registers prediction routes with authentication
+func (s *Server) registerPredictionRoutes(r *mux.Router, handler *handlers.PredictionHandler) {
+	r.HandleFunc("/predictions", handler.CreatePrediction).Methods("POST")
+	r.HandleFunc("/predictions/me", handler.GetUserPredictions).Methods("GET")
+	r.HandleFunc("/matches/{matchId}/predictions", handler.GetMatchPredictions).Methods("GET")
+	r.HandleFunc("/matches/{matchId}/predictions/me", handler.GetUserPredictionForMatch).Methods("GET")
+}
+
+// healthCheck handles the health check endpoint.
+func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
