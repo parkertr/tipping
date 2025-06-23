@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -146,7 +147,7 @@ func (h *AuthHandler) GoogleCredentialCallback(writer http.ResponseWriter, reque
 
 	user, err := h.createOrUpdateUser(request.Context(), userInfo)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		http.Error(writer, "failed to create/update user", http.StatusInternalServerError)
 		return
 	}
 
@@ -227,18 +228,13 @@ func (h *AuthHandler) createOrUpdateUser(ctx context.Context, userInfo *struct {
 	Picture       string `json:"picture"`
 }) (*domain.User, error) {
 	user, err := h.userRepo.GetByGoogleID(ctx, userInfo.ID)
-	if err != nil {
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	if user == nil {
-		// Create new user
-		user = &domain.User{
-			GoogleID: userInfo.ID,
-			Email:    userInfo.Email,
-			Name:     userInfo.Name,
-			Picture:  userInfo.Picture,
-		}
+		// Create new user using the domain constructor
+		user = domain.NewUser(userInfo.ID, userInfo.Email, userInfo.Name, userInfo.Picture)
 
 		if err := h.userRepo.Create(ctx, user); err != nil {
 			return nil, fmt.Errorf("failed to create user: %w", err)

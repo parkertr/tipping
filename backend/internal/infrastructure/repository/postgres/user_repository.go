@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"github.com/parkertr/tipping/internal/domain"
+	"github.com/parkertr/tipping/internal/infrastructure/repository"
 )
 
 // UserRepository implements repository.UserRepository for PostgreSQL.
@@ -247,7 +248,7 @@ func (repo *UserRepository) queryUser(ctx context.Context, query string, args ..
 		&stats.CurrentRank,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("user not found: %w", err)
+		return nil, repository.ErrNotFound
 	}
 
 	if err != nil {

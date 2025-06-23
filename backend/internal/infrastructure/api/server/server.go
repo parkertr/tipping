@@ -28,11 +28,30 @@ type Server struct {
 // CORS middleware to handle cross-origin requests
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		// Allow requests from frontend origin
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		}
+
+		// Check if origin is allowed
+		originAllowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				originAllowed = true
+				break
+			}
+		}
+
+		if originAllowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
@@ -97,6 +116,12 @@ func (s *Server) registerRoutes() {
 	authHandler := handlers.NewAuthHandler(s.userRepo, s.tokenMgr, s.eventStore)
 	matchHandler := handlers.NewMatchHandler(s.eventStore, s.matchRepo)
 	predictionHandler := handlers.NewPredictionHandler(s.eventStore, s.matchRepo)
+
+	// Global OPTIONS handler for CORS preflight requests
+	s.Router.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// CORS headers are already set by corsMiddleware
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Public routes (no authentication required)
 	s.Router.HandleFunc("/api/health", s.healthCheck).Methods(http.MethodGet)
